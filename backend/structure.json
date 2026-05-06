@@ -12,10 +12,10 @@
             {
               "position": "Командир роти",
               "rank_state": "капітан",
-              "rank_actual": "",
-              "callsign": "",
-              "fio": "",
-              "location": "",
+              "rank_actual": "молодший лейтенант",
+              "callsign": "КОЛУМБ",
+              "fio": "АМЕЛЬКІН Василь Сергійович",
+              "location": "РЗ",
               "status": ""
             },
             {
@@ -171,10 +171,10 @@
             {
               "position": "Командир взводу",
               "rank_state": "старший лейтенант",
-              "rank_actual": "молодший лейтенант",
-              "callsign": "КОЛУМБ",
-              "fio": "АМЕЛЬКІН Василь Сергійович",
-              "location": "РЗ",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
               "status": "ППД"
             },
             {

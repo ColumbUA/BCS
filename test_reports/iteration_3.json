@@ -1,0 +1,36 @@
+{
+  "summary": "Full-stack testing of the new auth/roles/2FA/soldiers/documents/ammo/notifications features. 23/23 backend pytest cases passed (login, wrong password, brute-force lockout on isolated user, 2FA setup+verify via pyotp, structure 109 personnel with КОЛУМБ on АМЕЛЬКІН КР, soldiers seed + update, document upload/download/delete, ammo preset and summary with АК-74=14700 and CZ BREN=2310, material notifications with 23 incomplete cards recipient 'ОРЛОВ Борис Борисович ВЕНОМ', RBAC — VIEWER/PLATOON forbidden on protected writes, export zip). Frontend login with kr/kolumb2026 works, main page shows the full title 'РОТА РАДІО ТА РАДІОТЕХНІЧНОЇ РОЗВІДКИ' (not 'РРР'), all 6 tabs render, 23 soldier cards after seed, modal has mobilized/bzvp/ktz/education/certs/upload passport/ipn/military_id testids. Ammo tab shows АК-74, CZ BREN, РГД-5 rows and 'Заповнити типове' button for admin. Material login shows 'ОРЛОВ … ВЕНОМ (матеріаліст)' header with 23 notif-* cards listing missing passport/ipn/military_id. Viewer login: 'Заповнити типове', ammo-submit form and seed-soldiers button all correctly hidden (read-only). No blocking issues found.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_full_app.py",
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py is 824 lines — exceeds 700-line guideline. Consider splitting auth routes, soldier/document routes, ammo routes and export routes into separate routers for maintainability.",
+    "CORS: allow_credentials=True with allow_origins='*' is silently downgraded by browsers; fine because auth uses Bearer header, but set explicit origins from env for production.",
+    "JWT_SECRET default falls back to a random value per-process (secrets.token_hex). On backend restart every active JWT becomes invalid — document/force-set JWT_SECRET in .env for production; currently only a minor inconvenience in dev.",
+    "upload_document() reads full file into memory before size check — a 100MB upload will still consume memory; safer to stream and reject mid-stream, but acceptable for 20MB cap and small team use.",
+    "seed_users() only creates missing users; if an admin password is rotated in DEFAULT_USERS the change is NOT applied to an existing record (playbook note about idempotent-upsert seeding). Either update existing by username or document this.",
+    "is_locked() counts failures but verify_totp also triggers record_failed on wrong 2FA code — this can lock a legit user who mistypes a 2FA code 5 times. Consider separate counter or higher threshold for 2FA failures."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_full_app.py (new comprehensive suite: auth, 2FA, brute-force, soldiers, docs, ammo, notifications, RBAC, exports — 23 tests)"
+  ],
+  "success_rate": {"backend": "100% (23/23)", "frontend": "100% (all critical flows)"},
+  "test_credentials": "admin/rota2026, kr/kolumb2026, material/venom2026, kv1/platoon1, viewer/view2026 — all verified working",
+  "seed_data_creation": "Backend test created ~23 soldiers via /api/soldiers/seed-from-bchs, ammo preset data (~24 rows), and a test equipment/ammo row that was cleaned up within each test.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "test_full_app.py covers all new auth+soldier+docs+ammo+notifications flows and RBAC. For structure endpoint the subunit keys are the human names (e.g. 'Група обробки інформації'), NOT 'management' — iterate over .values() to find posts. brute-force lock is real: use a throwaway username for negative-login tests, DO NOT spam admin/viewer logins with bad passwords (15-min lock). Frontend: dates use native browser date picker (mm/dd/yyyy in the screenshot) not shadcn — minor design note. Document uploads stored on local disk under /app/storage/docs/ (no Proton Drive by design).",
+  "rca of the issue": "N/A — no bugs encountered."
+}
