@@ -17,13 +17,25 @@ export default function Login() {
     try {
       await login(username.trim().toLowerCase(), password, totp || null);
     } catch (ex) {
-      const detail = ex.response?.data?.detail || ex.message;
-      const detailStr = typeof detail === "string" ? detail : JSON.stringify(detail);
-      if (detailStr.includes("2FA")) setNeed2fa(true);
-      setErr(detailStr);
+      let msg;
+      if (ex.code === "ECONNABORTED" || /timeout/i.test(ex.message || "")) {
+        msg = "⏱ Тайм-аут підключення. Перевірте інтернет та спробуйте ще раз.";
+      } else if (!ex.response) {
+        msg = "🔌 Сервер недоступний. Перевірте мережу.";
+      } else {
+        const detail = ex.response?.data?.detail || ex.message;
+        msg = typeof detail === "string" ? detail : JSON.stringify(detail);
+        if (msg.includes("2FA")) setNeed2fa(true);
+      }
+      setErr(msg);
     } finally {
       setLoading(false);
     }
+  };
+
+  const clearSession = () => {
+    try { localStorage.clear(); sessionStorage.clear(); } catch (_) {}
+    window.location.reload();
   };
 
   return (
@@ -82,6 +94,13 @@ export default function Login() {
           Тестові облікові: <span style={{ color: "#A4C26A" }}>kr / kolumb2026</span>{" "}
           (командир) • <span style={{ color: "#D4A06A" }}>material / venom2026</span>{" "}
           (матеріаліст)
+        </div>
+        <div className="text-center mt-3">
+          <button type="button" onClick={clearSession}
+                  className="text-xs underline" style={{ color: "#7A8B6C" }}
+                  data-testid="btn-clear-session">
+            Виникає тайм-аут? Очистити сесію та перезавантажити
+          </button>
         </div>
       </div>
     </div>

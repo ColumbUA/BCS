@@ -13,20 +13,25 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY) || "");
 
   const ax = useCallback(() => {
-    const inst = axios.create({ baseURL: API });
+    const inst = axios.create({ baseURL: API, timeout: 30000 });
     if (token) inst.defaults.headers.common["Authorization"] = `Bearer ${token}`;
     return inst;
   }, [token]);
 
   useEffect(() => {
     if (!token) { setUser(null); return; }
-    axios.get(`${API}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
+    axios.get(`${API}/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+      timeout: 15000,
+    })
       .then((r) => setUser(r.data))
       .catch(() => { localStorage.removeItem(TOKEN_KEY); setToken(""); setUser(null); });
   }, [token]);
 
   const login = async (username, password, totp_code) => {
-    const res = await axios.post(`${API}/auth/login`, { username, password, totp_code });
+    const res = await axios.post(`${API}/auth/login`,
+      { username, password, totp_code },
+      { timeout: 20000 });
     const t = res.data.access_token;
     localStorage.setItem(TOKEN_KEY, t);
     setToken(t);
