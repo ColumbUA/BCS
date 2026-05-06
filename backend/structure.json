@@ -1,0 +1,1121 @@
+{
+  "name": "Рота радіо та радіотехнічної розвідки",
+  "battalion": "Розвідувальний батальйон",
+  "subunits": {
+    "__HQ__": {
+      "name": "Управління роти",
+      "type": "hq",
+      "squads": {
+        "__DIRECT__": {
+          "name": "",
+          "positions": [
+            {
+              "position": "Командир роти",
+              "rank_state": "капітан",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Заступник командира роти з психологічної підтримки персоналу",
+              "rank_state": "старший лейтенант",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Старший технік",
+              "rank_state": "штаб-сержант",
+              "rank_actual": "молодший сержант",
+              "callsign": "ШЕВА",
+              "fio": "ШЕВЦОВ Сергій Анатолійович",
+              "location": "ППД",
+              "status": "РЗ"
+            },
+            {
+              "position": "Головний сержант",
+              "rank_state": "головний сержант",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Сержант із матеріального забезпечення",
+              "rank_state": "старший сержант",
+              "rank_actual": "молодший сержант",
+              "callsign": "ВЕНОМ",
+              "fio": "ОРЛОВ Борис Борисович",
+              "location": "ППД",
+              "status": "РЗ"
+            },
+            {
+              "position": "Старший бойовий медик",
+              "rank_state": "сержант",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Водій-електрик",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            }
+          ]
+        }
+      },
+      "count": 7
+    },
+    "Група обробки інформації": {
+      "name": "Група обробки інформації",
+      "type": "group",
+      "squads": {
+        "__DIRECT__": {
+          "name": "",
+          "positions": [
+            {
+              "position": "Начальник групи",
+              "rank_state": "старший лейтенант",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Начальник обслуги",
+              "rank_state": "старший сержант",
+              "rank_actual": "молодший сержант",
+              "callsign": "САЙРЄКС",
+              "fio": "ПОЛЯКОВ Андрій Андрійович",
+              "location": "ППД",
+              "status": "РЗ"
+            },
+            {
+              "position": "Начальник обслуги",
+              "rank_state": "старший сержант",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Старший оператор",
+              "rank_state": "старший солдат",
+              "rank_actual": "солдат",
+              "callsign": "КРАВА",
+              "fio": "КРАВЧЕНКО Дмитро Віталійович",
+              "location": "РЗ",
+              "status": "РЗ"
+            },
+            {
+              "position": "Старший оператор",
+              "rank_state": "старший солдат",
+              "rank_actual": "солдат",
+              "callsign": "СФЕРА",
+              "fio": "ЛІННИК Михайло Сергійович",
+              "location": "РЗ",
+              "status": "РЗ"
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "солдат",
+              "callsign": "ПІКІН",
+              "fio": "ПІМКІН Євгеній В'ячеславович",
+              "location": "РЗ",
+              "status": "РЗ"
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "солдат",
+              "callsign": "ХАСАН",
+              "fio": "КУДУСОВ Асан Марленович",
+              "location": "РЗ",
+              "status": "РЗ"
+            },
+            {
+              "position": "Водій-електрик",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            }
+          ]
+        }
+      },
+      "count": 8
+    },
+    "1 Взвод радіорозвідки": {
+      "name": "1 Взвод радіорозвідки",
+      "type": "platoon",
+      "squads": {
+        "__DIRECT__": {
+          "name": "",
+          "positions": [
+            {
+              "position": "Командир взводу",
+              "rank_state": "старший лейтенант",
+              "rank_actual": "молодший лейтенант",
+              "callsign": "КОЛУМБ",
+              "fio": "АМЕЛЬКІН Василь Сергійович",
+              "location": "РЗ",
+              "status": "ППД"
+            },
+            {
+              "position": "Водій-електрик",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            }
+          ]
+        },
+        "1 Відділення радіорозвідки": {
+          "name": "1 Відділення радіорозвідки",
+          "positions": [
+            {
+              "position": "Головний сержант-командир відділення",
+              "rank_state": "старший сержант",
+              "rank_actual": "",
+              "callsign": "ХАНТЕР",
+              "fio": "КРАВЧЕНКО Костянтин Віталійович",
+              "location": "РВ",
+              "status": "РВ"
+            },
+            {
+              "position": "Старший оператор",
+              "rank_state": "старший солдат",
+              "rank_actual": "солдат",
+              "callsign": "БОЛТ",
+              "fio": "КУДУСОВ Усеін Марленович",
+              "location": "РЗ",
+              "status": "РЗ"
+            },
+            {
+              "position": "Старший оператор",
+              "rank_state": "старший солдат",
+              "rank_actual": "солдат",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "солдат",
+              "callsign": "СУШИСТ",
+              "fio": "ВАСИЛЕНКО Кирило Олександрович",
+              "location": "РВ",
+              "status": "РВ"
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "солдат",
+              "callsign": "ТЕХНОЛОГ",
+              "fio": "СИМАНОВСЬКИЙ Андрій Миколайович",
+              "location": "РЗ",
+              "status": "РЗ"
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "солдат",
+              "callsign": "ЖОКЕР",
+              "fio": "ПАНЬКОВ Євгеній Вікторович",
+              "location": "ППД",
+              "status": "ППД"
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "солдат",
+              "callsign": "ВІДЬМАК",
+              "fio": "МОСЮКА Андрія Андрійовича",
+              "location": "ППД",
+              "status": "ППД"
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "солдат",
+              "callsign": "",
+              "fio": "ФЕДЧЕНКО Ілля Вадимович",
+              "location": "",
+              "status": "РЗ"
+            },
+            {
+              "position": "Водій-електрик",
+              "rank_state": "солдат",
+              "rank_actual": "солдат",
+              "callsign": "ДЖОН",
+              "fio": "НЕСКОРОМЧЕНКО Анатолій Ігорович",
+              "location": "РВ",
+              "status": "РВ"
+            }
+          ]
+        },
+        "2 Відділення радіорозвідки": {
+          "name": "2 Відділення радіорозвідки",
+          "positions": [
+            {
+              "position": "Командир відділення",
+              "rank_state": "молодший сержант",
+              "rank_actual": "молодший сержант",
+              "callsign": "ТРЕНЕР",
+              "fio": "КОЗАК Максим Вікторович",
+              "location": "ППД",
+              "status": "РЗ"
+            },
+            {
+              "position": "Старший оператор",
+              "rank_state": "старший солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Старший оператор",
+              "rank_state": "старший солдат",
+              "rank_actual": "солдат",
+              "callsign": "НЕВА",
+              "fio": "ЛАПШИК Андрій Валерійович",
+              "location": "РЗ",
+              "status": "РЗ"
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "солдат",
+              "callsign": "АДІ",
+              "fio": "ДЕРЕВЯНКО Кирил Миколайович",
+              "location": "РЗ",
+              "status": "РЗ"
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "солдат",
+              "callsign": "ТРЕК",
+              "fio": "НАЗАРОВ Олексій Сергійович",
+              "location": "РЗ",
+              "status": "РЗ"
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Водій-електрик",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            }
+          ]
+        }
+      },
+      "count": 20
+    },
+    "2 Взвод радіорозвідки": {
+      "name": "2 Взвод радіорозвідки",
+      "type": "platoon",
+      "squads": {
+        "__DIRECT__": {
+          "name": "",
+          "positions": [
+            {
+              "position": "Командир взводу",
+              "rank_state": "старший лейтенант",
+              "rank_actual": "молодший лейтенант",
+              "callsign": "",
+              "fio": "МУСІЄНКА Віталія Євгенійович",
+              "location": "ППД",
+              "status": ""
+            },
+            {
+              "position": "Водій-електрик",
+              "rank_state": "солдат",
+              "rank_actual": "солдат",
+              "callsign": "СИЗИЙ",
+              "fio": "СЕЗОНЕЦЬ Сергій Іванович",
+              "location": "РВ",
+              "status": "РВ"
+            }
+          ]
+        },
+        "1 Відділення радіорозвідки": {
+          "name": "1 Відділення радіорозвідки",
+          "positions": [
+            {
+              "position": "Головний сержант-командир відділення",
+              "rank_state": "старший сержант",
+              "rank_actual": "молодший сержант",
+              "callsign": "ФІНЧ",
+              "fio": "ГАРМАШ Артур Володимирович",
+              "location": "ППД",
+              "status": "РЗ"
+            },
+            {
+              "position": "Старший оператор",
+              "rank_state": "старший солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Старший оператор",
+              "rank_state": "старший солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Водій-електрик",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            }
+          ]
+        },
+        "2 Відділення радіорозвідки": {
+          "name": "2 Відділення радіорозвідки",
+          "positions": [
+            {
+              "position": "Командир відділення",
+              "rank_state": "молодший сержант",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Старший оператор",
+              "rank_state": "старший солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Старший оператор",
+              "rank_state": "старший солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Водій-електрик",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            }
+          ]
+        },
+        "3 Відділення радіорозвідки": {
+          "name": "3 Відділення радіорозвідки",
+          "positions": [
+            {
+              "position": "Командир відділення",
+              "rank_state": "молодший сержант",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Старший оператор",
+              "rank_state": "старший солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Старший оператор",
+              "rank_state": "старший солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Водій-електрик",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            }
+          ]
+        }
+      },
+      "count": 29
+    },
+    "Взвод радіоелектронної розвідки": {
+      "name": "Взвод радіоелектронної розвідки",
+      "type": "platoon",
+      "squads": {
+        "__DIRECT__": {
+          "name": "",
+          "positions": [
+            {
+              "position": "Командир взводу",
+              "rank_state": "старший лейтенант",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Водій",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            }
+          ]
+        },
+        "1 Відділення радіотехнічної розвідки": {
+          "name": "1 Відділення радіотехнічної розвідки",
+          "positions": [
+            {
+              "position": "Головний сержант-командир відділення",
+              "rank_state": "старший сержант",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Старший оператор",
+              "rank_state": "старший солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Старший оператор",
+              "rank_state": "старший солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Водій-електрик",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            }
+          ]
+        },
+        "2 Відділення радіотехнічної розвідки": {
+          "name": "2 Відділення радіотехнічної розвідки",
+          "positions": [
+            {
+              "position": "Командир відділення",
+              "rank_state": "молодший сержант",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Старший оператор",
+              "rank_state": "старший солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Старший оператор",
+              "rank_state": "старший солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Водій-електрик",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            }
+          ]
+        },
+        "3 Відділення радіотехнічної розвідки": {
+          "name": "3 Відділення радіотехнічної розвідки",
+          "positions": [
+            {
+              "position": "Командир відділення",
+              "rank_state": "молодший сержант",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Старший оператор",
+              "rank_state": "старший солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Старший оператор",
+              "rank_state": "старший солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Водій-електрик",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            }
+          ]
+        }
+      },
+      "count": 26
+    },
+    "Взвод безпілотних авіаційних комплексів": {
+      "name": "Взвод безпілотних авіаційних комплексів",
+      "type": "platoon",
+      "squads": {
+        "__DIRECT__": {
+          "name": "",
+          "positions": [
+            {
+              "position": "Командир взводу",
+              "rank_state": "старший лейтенант",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Головний сержант",
+              "rank_state": "старший сержант",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Командир екіпажу безпілотних авіаційних комплексів - командир відділення",
+              "rank_state": "сержант",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Оператор безпілотних літальних апаратів",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Водій-електрик",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Командир відділення",
+              "rank_state": "молодший сержант",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Механік",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Механік",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Механік",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Водій-електрик",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Командир відділення",
+              "rank_state": "молодший сержант",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Оператор",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Водій-електрик",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Водій-електрик",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            }
+          ]
+        }
+      },
+      "count": 16
+    },
+    "Ремонтна майстерня озброєння": {
+      "name": "Ремонтна майстерня озброєння",
+      "type": "workshop",
+      "squads": {
+        "__DIRECT__": {
+          "name": "",
+          "positions": [
+            {
+              "position": "Начальник майстерні",
+              "rank_state": "старший сержант",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Майстеp",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            },
+            {
+              "position": "Водій-електрик",
+              "rank_state": "солдат",
+              "rank_actual": "",
+              "callsign": "",
+              "fio": "",
+              "location": "",
+              "status": ""
+            }
+          ]
+        }
+      },
+      "count": 3
+    }
+  },
+  "order": [
+    "__HQ__",
+    "Група обробки інформації",
+    "1 Взвод радіорозвідки",
+    "2 Взвод радіорозвідки",
+    "Взвод радіоелектронної розвідки",
+    "Взвод безпілотних авіаційних комплексів",
+    "Ремонтна майстерня озброєння"
+  ],
+  "total_personnel": 109
+}
