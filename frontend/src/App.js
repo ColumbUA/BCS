@@ -18,24 +18,26 @@ function App() {
   const [downloading, setDownloading] = useState(null);
 
   const showToast = (msg, kind = "ok") => {
+    if (window.__toastTimer) clearTimeout(window.__toastTimer);
     setToast({ msg, kind });
-    setTimeout(() => setToast(null), 2500);
+    window.__toastTimer = setTimeout(() => setToast(null), 2500);
   };
 
-  const downloadFile = async (urlPath, filename, key) => {
+  const downloadFile = async (url, filename, key) => {
     setDownloading(key);
     try {
-      const res = await fetch(`${API}${urlPath}`, { credentials: "omit" });
+      const fullUrl = url.startsWith("/api") ? `${BACKEND_URL}${url}` : url;
+      const res = await fetch(fullUrl, { credentials: "omit" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
+      const objUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url;
+      a.href = objUrl;
       a.download = filename;
       document.body.appendChild(a);
       a.click();
       a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setTimeout(() => URL.revokeObjectURL(objUrl), 1000);
       showToast(`Завантажено: ${filename}`);
     } catch (e) {
       console.error(e);
@@ -92,30 +94,31 @@ function App() {
           </div>
           <div className="flex items-center gap-3 flex-wrap">
             <button className="btn-mil" disabled={downloading === "org"}
-              onClick={() => downloadFile("/export/orgstructure.xml", "Управління ротою РРР - Організаційна структура.xml", "org")}
+              onClick={() => downloadFile("/api/export/orgstructure.xml", "Управління ротою РРР - Організаційна структура.xml", "org")}
               data-testid="dl-org">
               {downloading === "org" ? "⏳" : "⬇"} Орг. структура (.xml)
             </button>
             <button className="btn-mil" disabled={downloading === "cmd"}
-              onClick={() => downloadFile("/export/command.xml", "Управління ротою РРР - Бойове управління.xml", "cmd")}
+              onClick={() => downloadFile("/api/export/command.xml", "Управління ротою РРР - Бойове управління.xml", "cmd")}
               data-testid="dl-cmd">
               {downloading === "cmd" ? "⏳" : "⬇"} Бойове управління (.xml)
             </button>
             <button className="btn-mil" disabled={downloading === "int"}
-              onClick={() => downloadFile("/export/interactions.xml", "Управління ротою РРР - Матриця взаємодії.xml", "int")}
+              onClick={() => downloadFile("/api/export/interactions.xml", "Управління ротою РРР - Матриця взаємодії.xml", "int")}
               data-testid="dl-int">
               {downloading === "int" ? "⏳" : "⬇"} Матриця взаємодії (.xml)
             </button>
             <button className="btn-mil btn-mil-primary" disabled={downloading === "zip"}
-              onClick={() => downloadFile("/export/full-package.zip", "Управління ротою РРР - пакет.zip", "zip")}
+              onClick={() => downloadFile("/api/export/full-package.zip", "Управління ротою РРР - пакет.zip", "zip")}
               data-testid="dl-zip">
               {downloading === "zip" ? "⏳ Підготовка…" : "⬇ ZIP-пакет"}
             </button>
-            <a className="btn-mil" href="/files/rota-rrr-deploy.zip"
-               download="rota-rrr-deploy.zip" data-testid="dl-deploy"
-               title="Повний пакет для розгортання на власному сервері (Docker Compose)">
-              🚀 Deploy-пакет
-            </a>
+            <button className="btn-mil" disabled={downloading === "deploy"}
+              onClick={() => downloadFile("/files/rota-rrr-deploy.zip", "rota-rrr-deploy.zip", "deploy")}
+              data-testid="dl-deploy"
+              title="Повний пакет для розгортання на власному сервері (Docker Compose)">
+              {downloading === "deploy" ? "⏳" : "🚀"} Deploy-пакет
+            </button>
           </div>
         </div>
 
