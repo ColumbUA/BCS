@@ -11,6 +11,7 @@ files = [
     ("backend/server.py",            "rota-rrr-deploy/backend/server.py"),
     ("backend/auth.py",              "rota-rrr-deploy/backend/auth.py"),
     ("backend/xml_generators.py",    "rota-rrr-deploy/backend/xml_generators.py"),
+    ("backend/templates_lib.py",     "rota-rrr-deploy/backend/templates_lib.py"),
     ("backend/structure.json",       "rota-rrr-deploy/backend/structure.json"),
     # Deploy
     ("deploy/backend.Dockerfile",    "rota-rrr-deploy/deploy/backend.Dockerfile"),

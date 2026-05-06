@@ -847,10 +847,11 @@ async def update_warehouse_item(iid: str, payload: WarehouseItemBase, user=Depen
 
 @api_router.delete("/warehouse/items/{iid}")
 async def delete_warehouse_item(iid: str, user=Depends(commander_only)):
-    await db.warehouse_txns.delete_many({"item_id": iid})
-    res = await db.warehouse_items.delete_one({"id": iid})
-    if res.deleted_count == 0:
+    existing = await db.warehouse_items.find_one({"id": iid}, {"_id": 0})
+    if not existing:
         raise HTTPException(404, "Не знайдено")
+    await db.warehouse_txns.delete_many({"item_id": iid})
+    await db.warehouse_items.delete_one({"id": iid})
     return {"deleted": iid}
 
 

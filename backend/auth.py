@@ -201,12 +201,18 @@ async def clear_attempts(db, identifier: str):
 
 DEFAULT_USERS = [
     # username, password, name, role, platoon
-    ("admin",      "rota2026",   "Адміністратор",       "COMMANDER",      ""),
-    ("kr",         "kolumb2026", "Командир роти КОЛУМБ", "COMMANDER",      ""),
-    ("material",   "venom2026",  "ОРЛОВ Борис Борисович «ВЕНОМ» (матеріаліст)", "MATERIAL", ""),
-    ("kv1",        "platoon1",   "КВ 1 Взводу РР",       "PLATOON_LEADER", "1 Взвод радіорозвідки"),
-    ("kv2",        "platoon2",   "КВ 2 Взводу РР",       "PLATOON_LEADER", "2 Взвод радіорозвідки"),
-    ("viewer",     "view2026",   "Перегляд",             "VIEWER",         ""),
+    ("admin",      "rota2026",    "Адміністратор",                                    "COMMANDER",      ""),
+    ("kr",         "kolumb2026",  "Командир роти КОЛУМБ",                              "COMMANDER",      ""),
+    ("material",   "venom2026",   "ОРЛОВ Борис Борисович «ВЕНОМ» (матеріаліст)",      "MATERIAL",       ""),
+    ("kv1",        "platoon1",    "КВ 1 Взводу РР",                                    "PLATOON_LEADER", "1 Взвод радіорозвідки"),
+    ("kv2",        "platoon2",    "КВ 2 Взводу РР",                                    "PLATOON_LEADER", "2 Взвод радіорозвідки"),
+    ("viewer",     "view2026",    "Перегляд",                                          "VIEWER",         ""),
+    # Додаткові облікові для команди (5 чол.):
+    ("kv_rer",     "rer2026",     "КВ Взводу РЕР",                                     "PLATOON_LEADER", "Взвод радіоелектронної розвідки"),
+    ("kv_bpak",    "bpak2026",    "КВ Взводу БпАК",                                    "PLATOON_LEADER", "Взвод безпілотних авіаційних комплексів"),
+    ("ngoi",       "goi2026",     "Начальник Групи обробки інформації",                "PLATOON_LEADER", "Група обробки інформації"),
+    ("starshyna",  "starsh2026",  "Головний сержант роти",                             "MATERIAL",       ""),
+    ("dilovod",    "dilo2026",    "Діловод роти",                                      "MATERIAL",       ""),
 ]
 
 
