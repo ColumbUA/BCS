@@ -1,38 +1,44 @@
-# PRD — Управління ротою РРР (БЧС → MS Project)
+# PRD — Управління ротою РРР (БЧС → Editor → MS Project)
 
 ## Original problem statement
-"привет сделай мне блок схему управленее ротой на базе БЧС и выведи ее в Microsoft Project"
+1. "сделай мне блок схему управленее ротой на базе БЧС и выведи ее в Microsoft Project"
+2. "ТАК зроби та додай редактируюмую версию чтоб можно було дабавить засоби транспорт и все остальное добавь функцию штатный и позаштатныи засіб"
 
-## Вхідні дані
-БЧС роти радіо та радіотехнічної розвідки розвідувального батальйону (Excel, 02.05.2026, 109 осіб):
-- Управління роти (7), Група обробки інформації (8)
-- 1/2 Взвод РР, Взвод РЕР, Взвод БпАК, РМО
+## User choices
+- Інтерактивний веб-редактор + експорт у MS Project XML
+- Org chart + бойове управління + матриця взаємодії
+- Розрізнення штатний/позаштатний для кожного засобу
+- Українська мова
 
-## Користувацький вибір
-- Тільки готові файли MS Project (XML)
-- Обидва типи блок-схем: org chart + бойове управління
-- MS Project XML формат
-- Завдання MS Project: WBS-структура + типові задачі бойового управління
-- Мова: українська
+## Архітектура
+- **Backend**: FastAPI + MongoDB (motor); structure.json як статичні дані БЧС
+- **Frontend**: React 19, TailwindCSS, axios, мілітарі-стиль (тема BG#0E1A14, accent#A4C26A)
+- **Експорт**: 3 MS Project XML файли + ZIP з 2 CSV
 
 ## Реалізовано (2026-05-02)
-- `/app/scripts/parse_bchs.py` — парсер Excel у JSON
-- `/app/scripts/gen_msproject_orgstructure.py` — XML оргструктури (125 завдань, 23 ресурси)
-- `/app/scripts/gen_msproject_command.py` — XML бойового управління (38 завдань, 12 ресурсів, 52 призначення)
-- `/app/scripts/gen_blockschemes.py` — SVG блок-схеми (org + бойове)
-- Конвертація в PDF/PNG через cairosvg
-- Сторінка завантаження `/app/frontend/public/files/index.html`
-- Архів-пакет ZIP
+- `/app/backend/server.py` — FastAPI з ~20 endpoints (CRUD засобів, взаємодій, presets, експорт)
+- `/app/backend/xml_generators.py` — генератори MS Project XML
+  - `generate_org_structure_xml(company, equipment)` — WBS + персонал (Work) + засоби (Material з Group=штатний/позаштатний)
+  - `generate_command_cycle_xml(company)` — 38 завдань / 7 фаз циклу управління
+  - `generate_interaction_matrix_xml(company, interactions)` — групи каналів зв'язку
+- `/app/frontend/src/App.js` — редактор з 3 вкладками:
+  - Структура та засоби (дерево + редагування)
+  - Матриця взаємодії (CRUD каналів зв'язку)
+  - Зведення (статистика, графіки)
 
-## Артефакти
-Доступні за URL: `${REACT_APP_BACKEND_URL}/files/`:
-- `Управління ротою РРР - Організаційна структура.xml`
-- `Управління ротою РРР - Бойове управління.xml`
-- Блок-схеми (SVG/PDF/PNG)
-- ZIP-архів усього пакета
-- README
+## Ключові API
+- `GET /api/structure` — БЧС структура (109 осіб, 7 підрозділів)
+- `POST /api/equipment` — додати засіб (тип=штатний|позаштатний)
+- `POST /api/equipment/preset/typical` — наповнити типове (33 записи, 198 одиниць)
+- `POST /api/interactions/preset/typical` — наповнити типову матрицю (11 каналів)
+- `GET /api/export/orgstructure.xml | command.xml | interactions.xml | full-package.zip`
 
-## Backlog (P1/P2)
-- P1: додати у MS Project XML фактичну дислокацію (ППД/РЗ/РВ) як власне поле Text1
-- P2: розширити цикл бойового управління окремим планом для вогневих позицій взводу БпАК
-- P2: підготувати MS Project XML з кожним взводом окремо (sub-projects)
+## Тестування (iter 1)
+- Backend: 12/12 pytest pass (100%)
+- Frontend: smoke test — всі сценарії працюють (100%)
+
+## Backlog
+- P2: drag-and-drop переміщення засобу між вузлами
+- P2: фільтр за станом (несправні / потребують ремонту)
+- P2: експорт SVG блок-схем напряму з UI
+- P2: групове редагування (мульти-вибір)
