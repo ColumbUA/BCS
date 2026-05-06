@@ -35,6 +35,10 @@ services:
       MONGO_URL: "mongodb://mongo:27017"
       DB_NAME: "rrr_company"
       CORS_ORIGINS: "${PUBLIC_URL:-http://localhost}"
+      JWT_SECRET: "${JWT_SECRET:-change-me-please-set-a-random-64-char-hex-string}"
+      STORAGE_DIR: "/app/storage"
+    volumes:
+      - storage_data:/app/storage
     depends_on:
       mongo:
         condition: service_healthy
@@ -63,3 +67,4 @@ networks:
 
 volumes:
   mongo_data:
+  storage_data:

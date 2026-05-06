@@ -1,25 +1,29 @@
-# Управління ротою РРР — інструкція з розгортання
+# Управління ротою — інструкція з розгортання
 
-Повноцінний веб-додаток для редагування БЧС роти радіо та радіотехнічної розвідки з експортом у Microsoft Project XML.
+Повноцінний веб-додаток для управління ротою радіо та радіотехнічної розвідки:
+- Облік особового складу (картки солдатів з документами)
+- Облік озброєння, техніки, зв'язку (штатний / позаштатний)
+- Облік боєкомплекту (АК-74, CZ BREN 2, гранати, ВОГ)
+- Матриця взаємодії підрозділів
+- Експорт у Microsoft Project XML
+- JWT-авторизація з ролями + 2FA Google Authenticator
+- Сповіщення матеріалісту про неповні документи
 
 ## Що в пакеті
 
 ```
 rota-rrr-deploy/
-├── backend/                    FastAPI + Python
-│   ├── server.py               REST API (CRUD засобів, взаємодій, експорт)
-│   ├── xml_generators.py       генератори MS Project XML
+├── backend/                    FastAPI + MongoDB
+│   ├── server.py               REST API (auth, soldiers, ammo, equipment, ...)
+│   ├── auth.py                 JWT + bcrypt + TOTP + ролі
+│   ├── xml_generators.py       MS Project XML
 │   └── structure.json          БЧС роти (109 осіб, 7 підрозділів)
 ├── frontend/                   React 19 + Tailwind
-│   └── src/                    редактор з 3 вкладками
-├── deploy/                     конфіги для Docker
-│   ├── backend.Dockerfile
-│   ├── frontend.Dockerfile     (multi-stage → Nginx)
-│   ├── nginx.conf              SPA + проксі /api
-│   └── backend.requirements.txt
-├── docker-compose.yml          оркестрація 3 контейнерів
-├── .env.example                шаблон налаштувань
-└── DEPLOY.md                   ця інструкція
+├── deploy/                     Docker конфіги
+├── docker-compose.yml          MongoDB + Backend + Nginx
+├── .env.example                ШАБЛОН (PUBLIC_URL, JWT_SECRET, HTTP_PORT)
+├── CREDENTIALS.md              Тестові облікові
+└── DEPLOY.md                   Ця інструкція
 ```
 
 ---
@@ -43,38 +47,43 @@ cd /opt/rota-rrr-deploy
 
 ```bash
 cp .env.example .env
-nano .env
+# Згенеруйте JWT_SECRET (важливо для безпеки!):
+JWT_SECRET=$(python3 -c "import secrets; print(secrets.token_hex(32))")
+sed -i "s/ЗМІНИТИ_НА_ВЛАСНИЙ_64_СИМВОЛЬНИЙ_HEX_РЯДОК/$JWT_SECRET/" .env
+nano .env  # відредагуйте PUBLIC_URL
 ```
 
 ```env
-# Зовнішня адреса сервера (для CORS)
 PUBLIC_URL=http://192.168.1.100:8080
-# або якщо за домен через reverse-proxy:
-# PUBLIC_URL=https://rota.example.com
-
-HTTP_PORT=8080      # порт для зовнішнього доступу
+HTTP_PORT=8080
+JWT_SECRET=<згенерований 64-символьний hex>
 ```
 
 ### Крок 3. Запустіть
 
 ```bash
 docker compose up -d --build
+docker compose ps   # всі 3 сервіси Up
 ```
 
-Перший білд триває 3–5 хв. Після завершення:
+Відкрийте: **http://your-server-ip:8080**
 
-```bash
-docker compose ps
-# rrr-mongo, rrr-backend, rrr-frontend — всі Up
-```
+### Крок 4. Перший вхід
 
-Відкрийте у браузері: **http://your-server-ip:8080**
+Тестові облікові (див. `CREDENTIALS.md`):
+- `admin` / `rota2026` — повний доступ
+- `kr` / `kolumb2026` — командир роти КОЛУМБ
+- `material` / `venom2026` — матеріаліст ВЕНОМ
 
-### Крок 4. Наповніть базу типовими даними
+⚠ **Обов'язково змініть паролі через "Профіль → Змінити пароль"** після першого входу!
 
-Натисніть кнопки **«Заповнити типове»** на вкладках:
-- *Структура та засоби* → 33 записи (~198 одиниць техніки)
-- *Матриця взаємодії* → 11 типових каналів зв'язку
+### Крок 5. Наповніть базу
+
+Ввійшовши як `admin`, натисніть кнопки **«Заповнити типове»** на вкладках:
+- Структура та засоби (38 одиниць техніки)
+- Боєкомплект (24 записи: ~17000 БК)
+- Матриця взаємодії (11 каналів)
+- Картки солдатів → «Створити картки з БЧС» (23 картки)
 
 ---
 

@@ -102,12 +102,12 @@ async def login(req: LoginRequest, request: Request):
     if not user or not verify_password(req.password, user["password_hash"]):
         await record_failed(db, ident)
         raise HTTPException(status_code=401, detail="Невірний логін або пароль")
-    # 2FA
+    # 2FA — окремий лічильник, щоб помилка коду не блокувала legit-користувача
     if user.get("totp_enabled"):
         if not req.totp_code:
             raise HTTPException(status_code=401, detail="Потрібен код 2FA з Google Authenticator")
         if not verify_totp(user.get("totp_secret", ""), req.totp_code):
-            await record_failed(db, ident)
+            # Не використовуємо record_failed (це для пароля) — просто 401
             raise HTTPException(status_code=401, detail="Невірний код 2FA")
     await clear_attempts(db, ident)
     token = create_access_token(user["id"], user["username"], user["role"])

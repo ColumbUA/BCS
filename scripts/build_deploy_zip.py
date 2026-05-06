@@ -9,6 +9,7 @@ ROOT = Path("/app")
 files = [
     # Backend
     ("backend/server.py",            "rota-rrr-deploy/backend/server.py"),
+    ("backend/auth.py",              "rota-rrr-deploy/backend/auth.py"),
     ("backend/xml_generators.py",    "rota-rrr-deploy/backend/xml_generators.py"),
     ("backend/structure.json",       "rota-rrr-deploy/backend/structure.json"),
     # Deploy
@@ -20,6 +21,7 @@ files = [
     ("docker-compose.yml",           "rota-rrr-deploy/docker-compose.yml"),
     (".env.example",                 "rota-rrr-deploy/.env.example"),
     ("DEPLOY.md",                    "rota-rrr-deploy/DEPLOY.md"),
+    ("memory/test_credentials.md",   "rota-rrr-deploy/CREDENTIALS.md"),
 ]
 
 # Frontend — копіюємо всі src + конфіги, без node_modules та build

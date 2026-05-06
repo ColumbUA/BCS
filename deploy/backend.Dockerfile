@@ -20,7 +20,11 @@ COPY deploy/backend.requirements.txt requirements.txt
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
 # Копіюємо код
-COPY backend/server.py backend/xml_generators.py backend/structure.json ./
+COPY backend/server.py backend/auth.py backend/xml_generators.py backend/structure.json ./
+
+# Створюємо директорію для зберігання документів
+RUN mkdir -p /app/storage/docs
+ENV STORAGE_DIR=/app/storage
 
 EXPOSE 8001
 
