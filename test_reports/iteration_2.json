@@ -1,0 +1,50 @@
+{
+  "summary": "Frontend-only testing of 5 download buttons after refactor from <a href> to fetch+blob downloadFile(). All 5 buttons trigger correct browser download events with correct suggested filenames and file sizes. Backend export endpoints verified via curl (200 OK, correct content-types). XML content verified to contain '[ШТАТНИЙ]' prefix on Material resources (20 occurrences). Static deploy zip served via React dev server's public/files/ folder works through ingress.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "download_test_results": [
+    {"id": "dl-org", "filename": "Управління ротою РРР - Організаційна структура.xml", "size": 223591, "expected_min": 100000, "status": "PASS"},
+    {"id": "dl-cmd", "filename": "Управління ротою РРР - Бойове управління.xml", "size": 109647, "expected_min": 50000, "status": "PASS"},
+    {"id": "dl-int", "filename": "Управління ротою РРР - Матриця взаємодії.xml", "size": 54093, "expected_min": 30000, "status": "PASS"},
+    {"id": "dl-zip", "filename": "Управління ротою РРР - пакет.zip", "size": 20163, "expected_min": 5000, "status": "PASS"},
+    {"id": "dl-deploy", "filename": "rota-rrr-deploy.zip", "size": 280527, "expected_min": 250000, "status": "PASS"}
+  ],
+  "api_smoke_tests": [
+    {"endpoint": "/api/export/orgstructure.xml", "status": 200, "size": 223591, "content_type": "application/xml"},
+    {"endpoint": "/api/export/command.xml", "status": 200, "size": 109647, "content_type": "application/xml"},
+    {"endpoint": "/api/export/interactions.xml", "status": 200, "size": 54093, "content_type": "application/xml"},
+    {"endpoint": "/api/export/full-package.zip", "status": 200, "size": 20163, "content_type": "application/zip"},
+    {"endpoint": "/files/rota-rrr-deploy.zip", "status": 200, "size": 280527, "served_by": "frontend dev server (public/files/)"}
+  ],
+  "xml_content_verification": {
+    "subunit_found": "Взвод безпілотних авіаційних комплексів",
+    "shtatnyi_material_resources_count": 20,
+    "examples": [
+      "[ШТАТНИЙ] Засіб зв'язку: Р-187П1 АКВЕДУК",
+      "[ШТАТНИЙ] Засіб зв'язку: Motorola DP4400e",
+      "[ШТАТНИЙ] Транспорт: УРАЛ-4320 (КУНГ)",
+      "[ШТАТНИЙ] Транспорт: MITSUBISHI L200",
+      "[ШТАТНИЙ] ОВТ: АК-74"
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/backend_test.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Minor (non-blocking): showToast() in App.js does not clear the previous setTimeout when a new toast replaces an old one. If a user clicks multiple download buttons rapidly (<2.5s apart), the earliest timeout will hide the latest toast prematurely. Suggest storing the timeout id in a ref and clearing it on each new showToast call.",
+    "App.js is now ~793 lines — close to the 700-line guideline. Consider splitting StructureTab, EquipmentEditor, InteractionsTab, SummaryTab into separate files for maintainability.",
+    "Inconsistency: 4 download buttons use fetch+blob (uniform UX, shows 'Завантажено:' toast and ⏳ spinner) while dl-deploy uses native <a href download>. dl-deploy will NOT show toast, will NOT show spinner, and on download error (e.g. 404) will leave user on a broken page instead of giving a friendly error. Recommend converting dl-deploy to also use downloadFile() for consistency, OR document why it differs."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All 5 download buttons (dl-org, dl-cmd, dl-int, dl-zip, dl-deploy) work end-to-end via Playwright download event capture. fetch+blob refactor fixed the original issue. Public URL: https://bcs-roster-control.preview.emergentagent.com. Note: /files/* path is served by the React dev server (public/files/), NOT by FastAPI — be aware if production build/deployment changes path routing."
+}

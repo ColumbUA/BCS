@@ -15,10 +15,34 @@ function App() {
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
+  const [downloading, setDownloading] = useState(null);
 
   const showToast = (msg, kind = "ok") => {
     setToast({ msg, kind });
     setTimeout(() => setToast(null), 2500);
+  };
+
+  const downloadFile = async (urlPath, filename, key) => {
+    setDownloading(key);
+    try {
+      const res = await fetch(`${API}${urlPath}`, { credentials: "omit" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showToast(`Завантажено: ${filename}`);
+    } catch (e) {
+      console.error(e);
+      showToast(`Помилка завантаження: ${e.message}`, "err");
+    } finally {
+      setDownloading(null);
+    }
   };
 
   const reload = async () => {
@@ -67,17 +91,30 @@ function App() {
             </div>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
-            <a className="btn-mil" href={`${API}/export/orgstructure.xml`} data-testid="dl-org">
-              ⬇ Орг. структура (.xml)
-            </a>
-            <a className="btn-mil" href={`${API}/export/command.xml`} data-testid="dl-cmd">
-              ⬇ Бойове управління (.xml)
-            </a>
-            <a className="btn-mil" href={`${API}/export/interactions.xml`} data-testid="dl-int">
-              ⬇ Матриця взаємодії (.xml)
-            </a>
-            <a className="btn-mil btn-mil-primary" href={`${API}/export/full-package.zip`} data-testid="dl-zip">
-              ⬇ ZIP-пакет
+            <button className="btn-mil" disabled={downloading === "org"}
+              onClick={() => downloadFile("/export/orgstructure.xml", "Управління ротою РРР - Організаційна структура.xml", "org")}
+              data-testid="dl-org">
+              {downloading === "org" ? "⏳" : "⬇"} Орг. структура (.xml)
+            </button>
+            <button className="btn-mil" disabled={downloading === "cmd"}
+              onClick={() => downloadFile("/export/command.xml", "Управління ротою РРР - Бойове управління.xml", "cmd")}
+              data-testid="dl-cmd">
+              {downloading === "cmd" ? "⏳" : "⬇"} Бойове управління (.xml)
+            </button>
+            <button className="btn-mil" disabled={downloading === "int"}
+              onClick={() => downloadFile("/export/interactions.xml", "Управління ротою РРР - Матриця взаємодії.xml", "int")}
+              data-testid="dl-int">
+              {downloading === "int" ? "⏳" : "⬇"} Матриця взаємодії (.xml)
+            </button>
+            <button className="btn-mil btn-mil-primary" disabled={downloading === "zip"}
+              onClick={() => downloadFile("/export/full-package.zip", "Управління ротою РРР - пакет.zip", "zip")}
+              data-testid="dl-zip">
+              {downloading === "zip" ? "⏳ Підготовка…" : "⬇ ZIP-пакет"}
+            </button>
+            <a className="btn-mil" href="/files/rota-rrr-deploy.zip"
+               download="rota-rrr-deploy.zip" data-testid="dl-deploy"
+               title="Повний пакет для розгортання на власному сервері (Docker Compose)">
+              🚀 Deploy-пакет
             </a>
           </div>
         </div>

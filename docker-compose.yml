@@ -1,0 +1,65 @@
+# =====================================================================
+# Управління ротою РРР — Docker Compose
+# =====================================================================
+# Запуск:   docker compose up -d --build
+# Зупинка:  docker compose down
+# Логи:     docker compose logs -f
+# =====================================================================
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: rrr-mongo
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - rrr-net
+    # Не публікуємо порт назовні — доступ тільки з backend
+    # Якщо потрібен доступ ззовні — розкоментуйте:
+    # ports:
+    #   - "27017:27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ping:1}).ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: deploy/backend.Dockerfile
+    container_name: rrr-backend
+    restart: unless-stopped
+    environment:
+      MONGO_URL: "mongodb://mongo:27017"
+      DB_NAME: "rrr_company"
+      CORS_ORIGINS: "${PUBLIC_URL:-http://localhost}"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks:
+      - rrr-net
+
+  frontend:
+    build:
+      context: .
+      dockerfile: deploy/frontend.Dockerfile
+      args:
+        # Frontend і backend на одному домені → /api проксується через nginx
+        REACT_APP_BACKEND_URL: ""
+    container_name: rrr-frontend
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+    depends_on:
+      - backend
+    networks:
+      - rrr-net
+
+networks:
+  rrr-net:
+    driver: bridge
+
+volumes:
+  mongo_data:
