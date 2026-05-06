@@ -39,6 +39,7 @@ from xml_generators import (
     generate_command_cycle_xml,
     generate_interaction_matrix_xml,
 )
+from templates_lib import list_templates, render_template
 
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
@@ -710,8 +711,197 @@ async def get_config():
         "ammo_types": AMMO_TYPES,
         "document_types": DOCUMENT_TYPES,
         "required_doc_types": REQUIRED_DOC_TYPES,
+        "warehouse_categories": WAREHOUSE_CATEGORIES,
+        "warehouse_txn_types": WAREHOUSE_TXN_TYPES,
         "company_name": COMPANY["name"],
     }
+
+
+# ============================ SETTINGS (реквізити частини) ============================
+
+class Settings(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    unit_full: str = ""        # повна назва частини
+    unit_short: str = ""       # в/ч А____
+    unit_chief: str = ""       # ПІБ командира частини
+    unit_chief_rank: str = ""  # звання командира частини
+    city: str = ""             # місто/н.п.
+    company_name: str = ""
+    company_chief: str = ""    # "командиру роти"
+
+
+@api_router.get("/settings", response_model=Settings)
+async def get_settings(user=Depends(get_current_user)):
+    s = await db.settings.find_one({"_id": "main"}, {"_id": 0}) or {}
+    if not s.get("company_name"):
+        s["company_name"] = COMPANY["name"]
+    if not s.get("company_chief"):
+        s["company_chief"] = "командиру роти"
+    return Settings(**s)
+
+
+@api_router.put("/settings", response_model=Settings)
+async def update_settings(payload: Settings, user=Depends(commander_only)):
+    upd = payload.model_dump()
+    await db.settings.update_one({"_id": "main"}, {"$set": upd}, upsert=True)
+    return payload
+
+
+# ============================ TEMPLATES (документи) ============================
+
+@api_router.get("/templates")
+async def get_templates(user=Depends(get_current_user)):
+    return {"templates": list_templates()}
+
+
+@api_router.get("/templates/{tid}/render")
+async def render_template_endpoint(tid: str, soldier_id: Optional[str] = None,
+                                   user=Depends(get_current_user)):
+    soldier = None
+    if soldier_id:
+        soldier = await db.soldiers.find_one({"id": soldier_id}, {"_id": 0})
+    settings = await db.settings.find_one({"_id": "main"}, {"_id": 0}) or {}
+    if not settings.get("company_name"):
+        settings["company_name"] = COMPANY["name"]
+    buf, fname = render_template(tid, soldier=soldier, settings=settings)
+    if not buf:
+        raise HTTPException(404, "Шаблон не знайдено")
+    headers = {"Content-Disposition": f"attachment; filename=\"document.docx\"; filename*=UTF-8''{_quote(fname)}"}
+    return StreamingResponse(buf,
+                             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                             headers=headers)
+
+
+# ============================ WAREHOUSE (Склад) ============================
+
+WAREHOUSE_CATEGORIES = ["ОВТ", "БК", "Засіб зв'язку", "Транспорт", "ПММ", "Майно (речове)",
+                       "Інженерне", "Медичне", "Продовольче", "Інше"]
+WAREHOUSE_TXN_TYPES = ["IN", "OUT", "WRITEOFF"]   # прихід / видача / списання
+TXN_LABELS = {"IN": "Прихід", "OUT": "Видача", "WRITEOFF": "Списання"}
+
+
+class WarehouseItemBase(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    name: str
+    category: str = "Майно (речове)"
+    unit: str = "шт"           # одиниця виміру
+    serial: str = ""           # сер/інв номер
+    notes: str = ""
+    min_balance: int = 0       # сигнальний залишок (для алертів)
+
+
+class WarehouseItem(WarehouseItemBase):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    created_at: str = Field(default_factory=lambda: datetime.datetime.now(datetime.timezone.utc).isoformat())
+
+
+class WarehouseTxnBase(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    item_id: str
+    type: Literal["IN", "OUT", "WRITEOFF"]
+    qty: int
+    date: str = ""             # YYYY-MM-DD
+    counterparty: str = ""     # від кого (для IN) або кому видано (для OUT)
+    doc_ref: str = ""          # № накладної / акту
+    reason: str = ""           # причина (для WRITEOFF)
+    notes: str = ""
+
+
+class WarehouseTxn(WarehouseTxnBase):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    created_at: str = Field(default_factory=lambda: datetime.datetime.now(datetime.timezone.utc).isoformat())
+    created_by: str = ""
+
+
+@api_router.get("/warehouse/items")
+async def list_warehouse(user=Depends(get_current_user)):
+    items = await db.warehouse_items.find({}, {"_id": 0}).to_list(2000)
+    txns = await db.warehouse_txns.find({}, {"_id": 0}).to_list(50000)
+    # Обчислюємо залишки
+    bal = {}
+    for t in txns:
+        delta = t["qty"] if t["type"] == "IN" else -t["qty"]
+        bal[t["item_id"]] = bal.get(t["item_id"], 0) + delta
+    for it in items:
+        it["balance"] = bal.get(it["id"], 0)
+        it["below_min"] = it["balance"] < (it.get("min_balance") or 0) if (it.get("min_balance") or 0) > 0 else False
+    return items
+
+
+@api_router.post("/warehouse/items", response_model=WarehouseItem)
+async def create_warehouse_item(payload: WarehouseItemBase, user=Depends(can_edit)):
+    item = WarehouseItem(**payload.model_dump())
+    await db.warehouse_items.insert_one(item.model_dump())
+    return item
+
+
+@api_router.put("/warehouse/items/{iid}", response_model=WarehouseItem)
+async def update_warehouse_item(iid: str, payload: WarehouseItemBase, user=Depends(can_edit)):
+    res = await db.warehouse_items.find_one_and_update(
+        {"id": iid}, {"$set": payload.model_dump()},
+        return_document=True, projection={"_id": 0})
+    if not res:
+        raise HTTPException(404, "Не знайдено")
+    return res
+
+
+@api_router.delete("/warehouse/items/{iid}")
+async def delete_warehouse_item(iid: str, user=Depends(commander_only)):
+    await db.warehouse_txns.delete_many({"item_id": iid})
+    res = await db.warehouse_items.delete_one({"id": iid})
+    if res.deleted_count == 0:
+        raise HTTPException(404, "Не знайдено")
+    return {"deleted": iid}
+
+
+@api_router.get("/warehouse/items/{iid}/txns")
+async def get_item_txns(iid: str, user=Depends(get_current_user)):
+    txns = await db.warehouse_txns.find({"item_id": iid}, {"_id": 0}).sort("created_at", 1).to_list(2000)
+    return txns
+
+
+@api_router.post("/warehouse/txns", response_model=WarehouseTxn)
+async def create_txn(payload: WarehouseTxnBase, user=Depends(can_edit)):
+    item = await db.warehouse_items.find_one({"id": payload.item_id}, {"_id": 0})
+    if not item:
+        raise HTTPException(404, "Позицію не знайдено")
+    if payload.qty <= 0:
+        raise HTTPException(400, "Кількість має бути > 0")
+    if payload.type in ("OUT", "WRITEOFF"):
+        # Перевіримо залишок
+        txns = await db.warehouse_txns.find({"item_id": payload.item_id}, {"_id": 0}).to_list(10000)
+        bal = sum((t["qty"] if t["type"] == "IN" else -t["qty"]) for t in txns)
+        if payload.qty > bal:
+            raise HTTPException(400, f"Недостатньо на залишку. Залишок: {bal} {item['unit']}")
+    txn = WarehouseTxn(**payload.model_dump(), created_by=user.username)
+    await db.warehouse_txns.insert_one(txn.model_dump())
+    return txn
+
+
+@api_router.delete("/warehouse/txns/{tid}")
+async def delete_txn(tid: str, user=Depends(commander_only)):
+    res = await db.warehouse_txns.delete_one({"id": tid})
+    if res.deleted_count == 0:
+        raise HTTPException(404, "Не знайдено")
+    return {"deleted": tid}
+
+
+@api_router.get("/warehouse/summary")
+async def warehouse_summary(user=Depends(get_current_user)):
+    items = await db.warehouse_items.find({}, {"_id": 0}).to_list(2000)
+    txns = await db.warehouse_txns.find({}, {"_id": 0}).to_list(50000)
+    bal = {}
+    for t in txns:
+        delta = t["qty"] if t["type"] == "IN" else -t["qty"]
+        bal[t["item_id"]] = bal.get(t["item_id"], 0) + delta
+    by_cat = {}; total = 0
+    for it in items:
+        b = bal.get(it["id"], 0)
+        c = it.get("category", "Інше")
+        by_cat[c] = by_cat.get(c, 0) + b
+        total += b
+    return {"total_items": len(items), "total_qty": total, "by_category": by_cat,
+            "txns_total": len(txns)}
 
 
 # ============================ EXPORT ============================

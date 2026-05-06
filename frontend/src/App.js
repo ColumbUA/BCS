@@ -9,6 +9,8 @@ import InteractionsTab from "./components/InteractionsTab";
 import SoldiersTab from "./components/SoldiersTab";
 import AmmoTab from "./components/AmmoTab";
 import NotificationsTab from "./components/NotificationsTab";
+import TemplatesTab from "./components/TemplatesTab";
+import WarehouseTab from "./components/WarehouseTab";
 import { cls, Stat } from "./components/Common";
 
 function AppShell() {
@@ -118,7 +120,9 @@ function AppShell() {
         <div className="max-w-[1400px] mx-auto px-6 flex gap-1 border-t border-mil overflow-x-auto">
           <Tab id="structure" cur={tab} onSelect={setTab}>📦 Структура та засоби</Tab>
           <Tab id="ammo" cur={tab} onSelect={setTab}>🎯 Боєкомплект</Tab>
+          <Tab id="warehouse" cur={tab} onSelect={setTab}>🏪 Склад</Tab>
           <Tab id="soldiers" cur={tab} onSelect={setTab}>👥 Картки солдатів</Tab>
+          <Tab id="templates" cur={tab} onSelect={setTab}>📄 Документи</Tab>
           <Tab id="interactions" cur={tab} onSelect={setTab}>📡 Матриця взаємодії</Tab>
           {can.material(user) && (
             <Tab id="notifications" cur={tab} onSelect={setTab}>📨 Сповіщення</Tab>
@@ -138,7 +142,9 @@ function AppShell() {
       <main className="max-w-[1400px] mx-auto px-6 py-5">
         {tab === "structure" && <StructureTab structure={structure} equipment={equipment} config={config} onChange={reload} showToast={showToast} />}
         {tab === "ammo" && <AmmoTab structure={structure} config={config} showToast={showToast} />}
+        {tab === "warehouse" && <WarehouseTab config={config} showToast={showToast} />}
         {tab === "soldiers" && <SoldiersTab structure={structure} showToast={showToast} forceOpenId={openSoldierId} clearOpenId={() => setOpenSoldierId(null)} />}
+        {tab === "templates" && <TemplatesTab showToast={showToast} />}
         {tab === "interactions" && <InteractionsTab interactions={interactions} structure={structure} channels={config?.interaction_channels || []} onChange={reload} showToast={showToast} />}
         {tab === "notifications" && can.material(user) && (
           <NotificationsTab showToast={showToast} onOpenSoldier={(id) => { setOpenSoldierId(id); setTab("soldiers"); }} />

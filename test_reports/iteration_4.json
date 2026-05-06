@@ -1,0 +1,39 @@
+{
+  "summary": "Iteration 4 — Templates (25 .docx у 5 категоріях), Settings (реквізити частини), Warehouse (склад: items + IN/OUT/WRITEOFF + summary). 23/23 нових pytest пройшли. Frontend перевірено для admin (COMMANDER) і viewer: вкладки 'Документи' і 'Склад' рендеряться, всі 5 секцій-заголовків ('📝 РАПОРТИ (8)', '📜 НАКАЗИ (3)', '📋 АКТИ (5)', '📚 ЖУРНАЛИ (6)', '📊 ДОНЕСЕННЯ (3)') присутні з рівно 25 кнопками 'Завантажити .docx'. Завантаження .docx — реальний browser download event спрацьовує, файл report_vacation.docx надходить (>5KB, валідний zip із word/document.xml, ПІБ солдата 'АМЕЛЬКІН' підставляється у документ). SettingsModal відкривається з кнопки 'Реквізити частини'. Warehouse: створення позиції через btn-wh-add → wh-name → wh-submit, відкриття детальної модалки кліком по wh-item-{id}, txn IN на 12 шт додає баланс. VIEWER коректно прихований від btn-wh-add і wh-btn-in/out/writeoff. Backend RBAC: PUT /settings, POST /warehouse/items, POST /warehouse/txns, DELETE /warehouse/items — усі дозволи відповідають специфікації (commander_only / can_edit / 403 для viewer/platoon). Validation 'Недостатньо на залишку' (HTTP 400) спрацьовує, cascade delete txns при видаленні позиції — працює.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Warehouse / Templates", "issues": ["Native browser <select> та <input type='date'> замість shadcn Select/Calendar (узгоджено з попередніми ітераціями)."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_templates_warehouse.py",
+    "/app/test_reports/pytest/iter4_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py розрісся до 1014 рядків (попередні зауваження про >700 LOC лишаються) — варто виділити окремі routers: routes_settings.py, routes_templates.py, routes_warehouse.py.",
+    "templates_lib.py — 774 рядки одного модуля з 25 builder-функціями. Доцільно розбити по категоріях (reports.py, orders.py, acts.py, journals.py, dispatches.py) і CATALOG агрегувати.",
+    "Warehouse баланс рахується на льоту через агрегацію всіх txns по item_id у /warehouse/items та /warehouse/summary (read-time aggregation). При зростанні до десятків тисяч txns це стане повільним — додати індекс на warehouse_txns.item_id або матеріалізувати balance у warehouse_items при кожній txn.",
+    "POST /warehouse/txns не атомарний: між перевіркою балансу і вставкою txn гонка можлива (одночасні OUT можуть піти у мінус). Для критичних залишків — обернути в Mongo transaction або використати findAndModify з умовою.",
+    "WAREHOUSE_CATEGORIES і WAREHOUSE_TXN_TYPES вживаються у /api/config (рядок 714-715) ще до їх визначення (рядок 777). Працює, бо тіло функції виконується пізніше, але стилістично краще винести константи на початок модуля.",
+    "Settings.PUT повністю замінює документ (model_dump усіх полів). Часткове оновлення не підтримується — мінорно, не блокує.",
+    "DELETE warehouse cascade: спочатку видаляються txns, потім item. Якщо item не існує — txns вже стерті, але користувач отримає 404. Краще перевірити існування item ПЕРЕД видаленням txns.",
+    "render_template_endpoint не валідизує, що soldier_id належить роті користувача (PLATOON_LEADER міг би згенерувати документ для чужого взводу). Не блокер для current scope, але варто розглянути."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_templates_warehouse.py (новий suite — 23 кейси: templates / settings / warehouse + RBAC)"
+  ],
+  "success_rate": {"backend": "100% (23/23)", "frontend": "100% (всі ключові флоу — templates list, download docx, settings modal, warehouse CRUD, RBAC hide for viewer)"},
+  "test_credentials": "admin/rota2026, kr/kolumb2026, material/venom2026, kv1/platoon1, viewer/view2026 — всі валідні",
+  "seed_data_creation": "Тести створюють і самостійно прибирають TEST_-prefixed warehouse items та txns (через DELETE з commander фікстури). Залишилася 1 demo-позиція 'Бронежилет 6Б45' (45 шт) — створена раніше, не з TEST_ prefix; не чистив, бо схоже на навмисні demo-дані користувача.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Поле ПІБ у соldiers — `fio` (НЕ full_name). Render template передає `soldier` повністю в make_context. Усі 25 шаблонів зкомпільовано і завантажуються — не треба обвʼязково тестувати кожен; sample (report_vacation) достатньо. Frontend warehouse delete викликає window.confirm — у Playwright потрібен page.on('dialog', ...) ПЕРЕД кліком, інакше модалка зависає. Templates tab робить два паралельні запити (/templates + /soldiers) у Promise.all — на повільному мережі давати >2.5s wait. data-testid у компонентах: tab-templates, tab-warehouse, tpl-soldier, btn-settings, btn-settings-save, tpl-{id}, tpl-dl-{id}, btn-wh-add, wh-name, wh-submit, wh-item-{id}, wh-btn-in/out/writeoff, wh-txn-qty, wh-txn-submit, wh-delete-item.",
+  "rca of the issue": "N/A — багів не виявлено."
+}
