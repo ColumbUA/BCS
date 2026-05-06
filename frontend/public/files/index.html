@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Управління ротою РРР — пакет файлів</title>
+<style>
+:root{--bg:#0E1A14;--card:#1A2A1F;--accent:#A4C26A;--text:#E8F0D8;--muted:#7A8B6C;--brown:#D4A06A;}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:40px 24px;background-image:linear-gradient(rgba(164,194,106,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(164,194,106,.04) 1px,transparent 1px);background-size:40px 40px}
+.wrap{max-width:1080px;margin:0 auto}
+h1{font-size:28px;letter-spacing:.5px;margin:0 0 8px}
+.sub{color:var(--muted);margin-bottom:32px}
+.section{background:var(--card);border:1px solid #2C4A2C;border-radius:12px;padding:24px;margin-bottom:20px;box-shadow:0 4px 12px rgba(0,0,0,.3)}
+.section h2{margin:0 0 6px;color:var(--accent);font-size:18px;border-left:4px solid var(--accent);padding-left:12px}
+.section .desc{color:var(--muted);font-size:13px;margin-bottom:16px}
+.files{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+.file{display:flex;align-items:center;justify-content:space-between;background:#0E1A14;border:1px solid #2C4A2C;border-radius:8px;padding:12px 14px;text-decoration:none;color:var(--text);transition:all .2s}
+.file:hover{border-color:var(--accent);transform:translateY(-1px);box-shadow:0 4px 8px rgba(164,194,106,.15)}
+.file .name{font-size:13px;font-weight:600}
+.file .ext{font-size:10px;text-transform:uppercase;background:var(--accent);color:#0E1A14;padding:3px 7px;border-radius:4px;font-weight:700;letter-spacing:.5px}
+.ext.xml{background:var(--brown)}
+.ext.zip{background:#7AB8D8;color:#0E1A14}
+.ext.pdf{background:#D6A0A0;color:#0E1A14}
+.ext.png{background:#B8A0D6;color:#0E1A14}
+.preview{margin-top:16px;border:1px solid #2C4A2C;border-radius:8px;overflow:hidden;background:#0E1A14}
+.preview img{width:100%;display:block}
+.stats{display:flex;gap:24px;margin:8px 0 24px;flex-wrap:wrap}
+.stat{background:var(--card);border:1px solid #2C4A2C;border-radius:8px;padding:12px 18px;min-width:140px}
+.stat .v{font-size:22px;font-weight:700;color:var(--accent)}
+.stat .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-top:2px}
+.cta{display:inline-block;margin-top:8px;padding:14px 22px;background:var(--accent);color:#0E1A14;text-decoration:none;border-radius:8px;font-weight:700;letter-spacing:.5px}
+.cta:hover{background:#B8D67C}
+.note{font-size:13px;color:var(--muted);background:#0E1A14;border-left:3px solid var(--brown);padding:10px 14px;border-radius:4px;margin-top:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Управління ротою РРР — пакет файлів</h1>
+  <div class="sub">Розвідувальний батальйон • Рота радіо та радіотехнічної розвідки • станом на 02.05.2026</div>
+
+  <div class="stats">
+    <div class="stat"><div class="v">109</div><div class="l">всього осіб (БЧС)</div></div>
+    <div class="stat"><div class="v">7</div><div class="l">підрозділів</div></div>
+    <div class="stat"><div class="v">125</div><div class="l">завдань орг. WBS</div></div>
+    <div class="stat"><div class="v">38</div><div class="l">кроків бойового управління</div></div>
+  </div>
+
+  <div class="section">
+    <h2>📦 Завантажити все одним архівом</h2>
+    <div class="desc">ZIP містить обидва XML для MS Project + блок-схеми (SVG, PDF, PNG) + README</div>
+    <a class="cta" href="Управління ротою РРР - пакет.zip" download>⬇ Завантажити ZIP-архів</a>
+  </div>
+
+  <div class="section">
+    <h2>1. Файли MS Project (.xml)</h2>
+    <div class="desc">Відкрити: MS Project → File → Open → Type: XML Format (*.xml)</div>
+    <div class="files">
+      <a class="file" href="Управління ротою РРР - Організаційна структура.xml" download>
+        <span class="name">Організаційна структура (WBS, 109 осіб)</span><span class="ext xml">XML</span></a>
+      <a class="file" href="Управління ротою РРР - Бойове управління.xml" download>
+        <span class="name">Бойове управління (24-год цикл)</span><span class="ext xml">XML</span></a>
+    </div>
+    <div class="note">ℹ Підтримується MS Project 2013/2016/2019/365. При відкритті можливо буде запит «Import as new project» — підтвердіть.</div>
+  </div>
+
+  <div class="section">
+    <h2>2. Блок-схема — Організаційна структура</h2>
+    <div class="desc">Org chart роти з підрозділами, відділеннями і кількостями</div>
+    <div class="files">
+      <a class="file" href="Блок-схема - Організаційна структура.pdf" download><span class="name">PDF (вектор, друк A2/A1)</span><span class="ext pdf">PDF</span></a>
+      <a class="file" href="Блок-схема - Організаційна структура.svg" download><span class="name">SVG (масштабований)</span><span class="ext">SVG</span></a>
+      <a class="file" href="Блок-схема - Організаційна структура.png" download><span class="name">PNG (2400px)</span><span class="ext png">PNG</span></a>
+    </div>
+    <div class="preview"><img src="Блок-схема - Організаційна структура.png" alt="Org chart"/></div>
+  </div>
+
+  <div class="section">
+    <h2>3. Блок-схема — Бойове управління</h2>
+    <div class="desc">Цикл управління (7 фаз, 30 кроків) — від отримання БЗ до підсумкової доповіді</div>
+    <div class="files">
+      <a class="file" href="Блок-схема - Бойове управління.pdf" download><span class="name">PDF (вектор, друк A2/A1)</span><span class="ext pdf">PDF</span></a>
+      <a class="file" href="Блок-схема - Бойове управління.svg" download><span class="name">SVG (масштабований)</span><span class="ext">SVG</span></a>
+      <a class="file" href="Блок-схема - Бойове управління.png" download><span class="name">PNG (2400px)</span><span class="ext png">PNG</span></a>
+    </div>
+    <div class="preview"><img src="Блок-схема - Бойове управління.png" alt="Combat mgmt scheme"/></div>
+  </div>
+
+  <div class="section">
+    <h2>4. Документація</h2>
+    <div class="files">
+      <a class="file" href="README.md" download><span class="name">README — опис, інструкції, склад пакета</span><span class="ext">MD</span></a>
+    </div>
+  </div>
+</div>
+</body>
+</html>

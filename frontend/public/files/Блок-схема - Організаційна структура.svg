@@ -1,0 +1,141 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1480 840" font-family="Arial, sans-serif">
+<rect width="100%" height="100%" fill="#0E1A14"/>
+<defs>
+  <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1A2A1F" stroke-width="0.5"/>
+  </pattern>
+  <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+    <feDropShadow dx="0" dy="3" stdDeviation="3" flood-opacity="0.4"/>
+  </filter>
+</defs>
+<rect width="100%" height="100%" fill="url(#grid)"/>
+<text x="740" y="36" text-anchor="middle" font-size="22" font-weight="bold" fill="#E8F0D8">БЛОК-СХЕМА УПРАВЛІННЯ РОТОЮ — ОРГАНІЗАЦІЙНА СТРУКТУРА</text>
+<text x="740" y="60" text-anchor="middle" font-size="13" fill="#A4B89A">Розвідувальний батальйон  •  Рота радіо та радіотехнічної розвідки  •  всього: 109 осіб  •  станом на 02.05.2026</text>
+<path d="M 776.0 170 L 776.0 210.0 L 776.0 210.0 L 776.0 250" stroke="#7A8B6C" stroke-width="1.6" fill="none"/>
+<path d="M 776.0 170 L 776.0 285.0 L 110.0 285.0 L 110.0 400" stroke="#7A8B6C" stroke-width="1.6" fill="none"/>
+<path d="M 776.0 170 L 776.0 285.0 L 350.0 285.0 L 350.0 400" stroke="#7A8B6C" stroke-width="1.6" fill="none"/>
+<path d="M 350.0 470 L 350.0 500.0 L 293.0 500.0 L 293.0 530" stroke="#7A8B6C" stroke-width="1.6" fill="none"/>
+<path d="M 350.0 470 L 350.0 500.0 L 407.0 500.0 L 407.0 530" stroke="#7A8B6C" stroke-width="1.6" fill="none"/>
+<path d="M 776.0 170 L 776.0 285.0 L 590.0 285.0 L 590.0 400" stroke="#7A8B6C" stroke-width="1.6" fill="none"/>
+<path d="M 590.0 470 L 590.0 500.0 L 525.0 500.0 L 525.0 530" stroke="#7A8B6C" stroke-width="1.6" fill="none"/>
+<path d="M 590.0 470 L 590.0 500.0 L 623.0 500.0 L 623.0 530" stroke="#7A8B6C" stroke-width="1.6" fill="none"/>
+<path d="M 590.0 470 L 590.0 500.0 L 721.0 500.0 L 721.0 530" stroke="#7A8B6C" stroke-width="1.6" fill="none"/>
+<path d="M 776.0 170 L 776.0 285.0 L 830.0 285.0 L 830.0 400" stroke="#7A8B6C" stroke-width="1.6" fill="none"/>
+<path d="M 830.0 470 L 830.0 500.0 L 765.0 500.0 L 765.0 530" stroke="#7A8B6C" stroke-width="1.6" fill="none"/>
+<path d="M 830.0 470 L 830.0 500.0 L 863.0 500.0 L 863.0 530" stroke="#7A8B6C" stroke-width="1.6" fill="none"/>
+<path d="M 830.0 470 L 830.0 500.0 L 961.0 500.0 L 961.0 530" stroke="#7A8B6C" stroke-width="1.6" fill="none"/>
+<path d="M 776.0 170 L 776.0 285.0 L 1070.0 285.0 L 1070.0 400" stroke="#7A8B6C" stroke-width="1.6" fill="none"/>
+<path d="M 776.0 170 L 776.0 285.0 L 1310.0 285.0 L 1310.0 400" stroke="#7A8B6C" stroke-width="1.6" fill="none"/>
+<g filter="url(#shadow)">
+<rect x="600" y="90" width="352.0" height="80" rx="8" ry="8" fill="#3D5A2C" stroke="#A4C26A" stroke-width="1.5"/>
+<rect x="600" y="90" width="352.0" height="4" fill="#A4C26A" rx="8" ry="8"/>
+<text x="776.0" y="112" text-anchor="middle" font-size="12" font-weight="bold" fill="#FFFFFF">Рота радіо та радіотехнічної розвідки</text>
+<text x="776.0" y="158" text-anchor="middle" font-size="9" fill="#FFFFFF" opacity="0.85">за БЧС: 109 осіб</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="666.0" y="250" width="220" height="70" rx="8" ry="8" fill="#5B3A29" stroke="#D4A06A" stroke-width="1.5"/>
+<rect x="666.0" y="250" width="220" height="4" fill="#D4A06A" rx="8" ry="8"/>
+<text x="776.0" y="272" text-anchor="middle" font-size="11" font-weight="bold" fill="#FFFFFF">Управління роти</text>
+<text x="776.0" y="308" text-anchor="middle" font-size="9" fill="#FFFFFF" opacity="0.85">7 осіб</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="0" y="400" width="220" height="70" rx="8" ry="8" fill="#4A3D5C" stroke="#B8A0D6" stroke-width="1.5"/>
+<rect x="0" y="400" width="220" height="4" fill="#B8A0D6" rx="8" ry="8"/>
+<text x="110.0" y="422" text-anchor="middle" font-size="11" font-weight="bold" fill="#FFFFFF">Група обробки інформації</text>
+<text x="110.0" y="458" text-anchor="middle" font-size="9" fill="#FFFFFF" opacity="0.85">8 осіб</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="240" y="400" width="220" height="70" rx="8" ry="8" fill="#2C4A5E" stroke="#7AB8D8" stroke-width="1.5"/>
+<rect x="240" y="400" width="220" height="4" fill="#7AB8D8" rx="8" ry="8"/>
+<text x="350.0" y="422" text-anchor="middle" font-size="11" font-weight="bold" fill="#FFFFFF">1 Взвод радіорозвідки</text>
+<text x="350.0" y="458" text-anchor="middle" font-size="9" fill="#FFFFFF" opacity="0.85">20 осіб</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="480" y="400" width="220" height="70" rx="8" ry="8" fill="#2C4A5E" stroke="#7AB8D8" stroke-width="1.5"/>
+<rect x="480" y="400" width="220" height="4" fill="#7AB8D8" rx="8" ry="8"/>
+<text x="590.0" y="422" text-anchor="middle" font-size="11" font-weight="bold" fill="#FFFFFF">2 Взвод радіорозвідки</text>
+<text x="590.0" y="458" text-anchor="middle" font-size="9" fill="#FFFFFF" opacity="0.85">29 осіб</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="720" y="400" width="220" height="70" rx="8" ry="8" fill="#2C4A5E" stroke="#7AB8D8" stroke-width="1.5"/>
+<rect x="720" y="400" width="220" height="4" fill="#7AB8D8" rx="8" ry="8"/>
+<text x="830.0" y="422" text-anchor="middle" font-size="11" font-weight="bold" fill="#FFFFFF">Взвод радіоелектронної</text>
+<text x="830.0" y="435" text-anchor="middle" font-size="11" font-weight="bold" fill="#FFFFFF">розвідки</text>
+<text x="830.0" y="458" text-anchor="middle" font-size="9" fill="#FFFFFF" opacity="0.85">26 осіб</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="960" y="400" width="220" height="70" rx="8" ry="8" fill="#2C4A5E" stroke="#7AB8D8" stroke-width="1.5"/>
+<rect x="960" y="400" width="220" height="4" fill="#7AB8D8" rx="8" ry="8"/>
+<text x="1070.0" y="422" text-anchor="middle" font-size="11" font-weight="bold" fill="#FFFFFF">Взвод безпілотних</text>
+<text x="1070.0" y="435" text-anchor="middle" font-size="11" font-weight="bold" fill="#FFFFFF">авіаційних комплексів</text>
+<text x="1070.0" y="458" text-anchor="middle" font-size="9" fill="#FFFFFF" opacity="0.85">16 осіб</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="1200" y="400" width="220" height="70" rx="8" ry="8" fill="#5C4A2C" stroke="#D8C36A" stroke-width="1.5"/>
+<rect x="1200" y="400" width="220" height="4" fill="#D8C36A" rx="8" ry="8"/>
+<text x="1310.0" y="422" text-anchor="middle" font-size="11" font-weight="bold" fill="#FFFFFF">Ремонтна майстерня</text>
+<text x="1310.0" y="435" text-anchor="middle" font-size="11" font-weight="bold" fill="#FFFFFF">озброєння</text>
+<text x="1310.0" y="458" text-anchor="middle" font-size="9" fill="#FFFFFF" opacity="0.85">3 осіб</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="240" y="530" width="106" height="60" rx="8" ry="8" fill="#1F2E22" stroke="#8FAA76" stroke-width="1.5"/>
+<rect x="240" y="530" width="106" height="4" fill="#8FAA76" rx="8" ry="8"/>
+<text x="293.0" y="552" text-anchor="middle" font-size="10" font-weight="bold" fill="#E8F0D8">1 Відд. РР</text>
+<text x="293.0" y="578" text-anchor="middle" font-size="9" fill="#E8F0D8" opacity="0.85">9 осіб</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="354" y="530" width="106" height="60" rx="8" ry="8" fill="#1F2E22" stroke="#8FAA76" stroke-width="1.5"/>
+<rect x="354" y="530" width="106" height="4" fill="#8FAA76" rx="8" ry="8"/>
+<text x="407.0" y="552" text-anchor="middle" font-size="10" font-weight="bold" fill="#E8F0D8">2 Відд. РР</text>
+<text x="407.0" y="578" text-anchor="middle" font-size="9" fill="#E8F0D8" opacity="0.85">9 осіб</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="480" y="530" width="90" height="60" rx="8" ry="8" fill="#1F2E22" stroke="#8FAA76" stroke-width="1.5"/>
+<rect x="480" y="530" width="90" height="4" fill="#8FAA76" rx="8" ry="8"/>
+<text x="525.0" y="552" text-anchor="middle" font-size="10" font-weight="bold" fill="#E8F0D8">1 Відд. РР</text>
+<text x="525.0" y="578" text-anchor="middle" font-size="9" fill="#E8F0D8" opacity="0.85">9 осіб</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="578" y="530" width="90" height="60" rx="8" ry="8" fill="#1F2E22" stroke="#8FAA76" stroke-width="1.5"/>
+<rect x="578" y="530" width="90" height="4" fill="#8FAA76" rx="8" ry="8"/>
+<text x="623.0" y="552" text-anchor="middle" font-size="10" font-weight="bold" fill="#E8F0D8">2 Відд. РР</text>
+<text x="623.0" y="578" text-anchor="middle" font-size="9" fill="#E8F0D8" opacity="0.85">9 осіб</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="676" y="530" width="90" height="60" rx="8" ry="8" fill="#1F2E22" stroke="#8FAA76" stroke-width="1.5"/>
+<rect x="676" y="530" width="90" height="4" fill="#8FAA76" rx="8" ry="8"/>
+<text x="721.0" y="552" text-anchor="middle" font-size="10" font-weight="bold" fill="#E8F0D8">3 Відд. РР</text>
+<text x="721.0" y="578" text-anchor="middle" font-size="9" fill="#E8F0D8" opacity="0.85">9 осіб</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="720" y="530" width="90" height="60" rx="8" ry="8" fill="#1F2E22" stroke="#8FAA76" stroke-width="1.5"/>
+<rect x="720" y="530" width="90" height="4" fill="#8FAA76" rx="8" ry="8"/>
+<text x="765.0" y="552" text-anchor="middle" font-size="10" font-weight="bold" fill="#E8F0D8">1 Відд. РТР</text>
+<text x="765.0" y="578" text-anchor="middle" font-size="9" fill="#E8F0D8" opacity="0.85">8 осіб</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="818" y="530" width="90" height="60" rx="8" ry="8" fill="#1F2E22" stroke="#8FAA76" stroke-width="1.5"/>
+<rect x="818" y="530" width="90" height="4" fill="#8FAA76" rx="8" ry="8"/>
+<text x="863.0" y="552" text-anchor="middle" font-size="10" font-weight="bold" fill="#E8F0D8">2 Відд. РТР</text>
+<text x="863.0" y="578" text-anchor="middle" font-size="9" fill="#E8F0D8" opacity="0.85">8 осіб</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="916" y="530" width="90" height="60" rx="8" ry="8" fill="#1F2E22" stroke="#8FAA76" stroke-width="1.5"/>
+<rect x="916" y="530" width="90" height="4" fill="#8FAA76" rx="8" ry="8"/>
+<text x="961.0" y="552" text-anchor="middle" font-size="10" font-weight="bold" fill="#E8F0D8">3 Відд. РТР</text>
+<text x="961.0" y="578" text-anchor="middle" font-size="9" fill="#E8F0D8" opacity="0.85">8 осіб</text>
+</g>
+<text x="20" y="660" font-size="13" font-weight="bold" fill="#E8F0D8">УМОВНІ ПОЗНАЧЕННЯ:</text>
+<rect x="20" y="680" width="22" height="14" rx="3" fill="#3D5A2C" stroke="#A4C26A"/>
+<text x="50" y="691" font-size="11" fill="#A4B89A">Рота</text>
+<rect x="180" y="680" width="22" height="14" rx="3" fill="#5B3A29" stroke="#D4A06A"/>
+<text x="210" y="691" font-size="11" fill="#A4B89A">Управління</text>
+<rect x="340" y="680" width="22" height="14" rx="3" fill="#4A3D5C" stroke="#B8A0D6"/>
+<text x="370" y="691" font-size="11" fill="#A4B89A">Група</text>
+<rect x="500" y="680" width="22" height="14" rx="3" fill="#2C4A5E" stroke="#7AB8D8"/>
+<text x="530" y="691" font-size="11" fill="#A4B89A">Взвод</text>
+<rect x="660" y="680" width="22" height="14" rx="3" fill="#5C4A2C" stroke="#D8C36A"/>
+<text x="690" y="691" font-size="11" fill="#A4B89A">Майстерня</text>
+<rect x="820" y="680" width="22" height="14" rx="3" fill="#1F2E22" stroke="#8FAA76"/>
+<text x="850" y="691" font-size="11" fill="#A4B89A">Відділення</text>
+</svg>

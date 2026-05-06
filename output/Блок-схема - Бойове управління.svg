@@ -1,0 +1,212 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2400 2630" font-family="Arial, sans-serif">
+<rect width="100%" height="100%" fill="#0E1A14"/>
+<defs>
+  <pattern id="grid2" width="40" height="40" patternUnits="userSpaceOnUse">
+    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1A2A1F" stroke-width="0.5"/>
+  </pattern>
+  <filter id="sh2" x="-20%" y="-20%" width="140%" height="140%">
+    <feDropShadow dx="0" dy="3" stdDeviation="3" flood-opacity="0.4"/>
+  </filter>
+  <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+    <path d="M 0 0 L 10 5 L 0 10 z" fill="#7A8B6C"/>
+  </marker>
+</defs>
+<rect width="100%" height="100%" fill="url(#grid2)"/>
+<text x="1200" y="40" text-anchor="middle" font-size="24" font-weight="bold" fill="#E8F0D8">БЛОК-СХЕМА БОЙОВОГО УПРАВЛІННЯ РОТОЮ РРР</text>
+<text x="1200" y="68" text-anchor="middle" font-size="13" fill="#A4B89A">Цикл управління (24 год) • Рота радіо та радіотехнічної розвідки • Розвідувальний батальйон</text>
+<rect x="30" y="120" width="2340" height="36" rx="6" ry="6" fill="#3D5A2C" opacity="0.92" filter="url(#sh2)"/>
+<text x="48" y="143.76" font-size="14" font-weight="bold" fill="#FFFFFF">I. Підготовка управління</text>
+<g filter="url(#sh2)">
+<rect x="30" y="172" width="574" height="50" rx="6" ry="6" fill="#1F2E22" stroke="#3D5A2C" stroke-width="1.8"/>
+<rect x="30" y="172" width="6" height="50" fill="#3D5A2C" rx="6" ry="6"/>
+<text x="45" y="202.0" font-size="11" fill="#E8F0D8">1. Отримання бойового завдання від КБ</text>
+</g>
+<g filter="url(#sh2)">
+<rect x="618" y="172" width="574" height="50" rx="6" ry="6" fill="#1F2E22" stroke="#3D5A2C" stroke-width="1.8"/>
+<rect x="618" y="172" width="6" height="50" fill="#3D5A2C" rx="6" ry="6"/>
+<text x="633" y="202.0" font-size="11" fill="#E8F0D8">2. З'ясування завдання, виділення задач</text>
+</g>
+<path d="M 604 197.0 L 613 197.0" stroke="#7A8B6C" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<g filter="url(#sh2)">
+<rect x="1206" y="172" width="574" height="50" rx="6" ry="6" fill="#1F2E22" stroke="#3D5A2C" stroke-width="1.8"/>
+<rect x="1206" y="172" width="6" height="50" fill="#3D5A2C" rx="6" ry="6"/>
+<text x="1221" y="202.0" font-size="11" fill="#E8F0D8">3. Орієнтування заступників і КВ</text>
+</g>
+<path d="M 1192 197.0 L 1201 197.0" stroke="#7A8B6C" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<g filter="url(#sh2)">
+<rect x="1794" y="172" width="574" height="50" rx="6" ry="6" fill="#1F2E22" stroke="#3D5A2C" stroke-width="1.8"/>
+<rect x="1794" y="172" width="6" height="50" fill="#3D5A2C" rx="6" ry="6"/>
+<text x="1809" y="202.0" font-size="11" fill="#E8F0D8">4. Розрахунок часу</text>
+</g>
+<path d="M 1780 197.0 L 1789 197.0" stroke="#7A8B6C" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<rect x="30" y="456" width="2340" height="36" rx="6" ry="6" fill="#2C4A5E" opacity="0.92" filter="url(#sh2)"/>
+<text x="48" y="479.76" font-size="14" font-weight="bold" fill="#FFFFFF">II. Оцінка обстановки</text>
+<g filter="url(#sh2)">
+<rect x="30" y="508" width="456" height="50" rx="6" ry="6" fill="#1F2E22" stroke="#2C4A5E" stroke-width="1.8"/>
+<rect x="30" y="508" width="6" height="50" fill="#2C4A5E" rx="6" ry="6"/>
+<text x="45" y="538.0" font-size="11" fill="#E8F0D8">5. Противник</text>
+</g>
+<g filter="url(#sh2)">
+<rect x="500" y="508" width="456" height="50" rx="6" ry="6" fill="#1F2E22" stroke="#2C4A5E" stroke-width="1.8"/>
+<rect x="500" y="508" width="6" height="50" fill="#2C4A5E" rx="6" ry="6"/>
+<text x="515" y="538.0" font-size="11" fill="#E8F0D8">6. Свої сили та засоби</text>
+</g>
+<path d="M 486 533.0 L 495 533.0" stroke="#7A8B6C" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<g filter="url(#sh2)">
+<rect x="970" y="508" width="456" height="50" rx="6" ry="6" fill="#1F2E22" stroke="#2C4A5E" stroke-width="1.8"/>
+<rect x="970" y="508" width="6" height="50" fill="#2C4A5E" rx="6" ry="6"/>
+<text x="985" y="538.0" font-size="11" fill="#E8F0D8">7. Район дій, маршрути</text>
+</g>
+<path d="M 956 533.0 L 965 533.0" stroke="#7A8B6C" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<g filter="url(#sh2)">
+<rect x="1440" y="508" width="456" height="50" rx="6" ry="6" fill="#1F2E22" stroke="#2C4A5E" stroke-width="1.8"/>
+<rect x="1440" y="508" width="6" height="50" fill="#2C4A5E" rx="6" ry="6"/>
+<text x="1455" y="538.0" font-size="11" fill="#E8F0D8">8. Час, метеоумови</text>
+</g>
+<path d="M 1426 533.0 L 1435 533.0" stroke="#7A8B6C" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<g filter="url(#sh2)">
+<rect x="1910" y="508" width="456" height="50" rx="6" ry="6" fill="#1F2E22" stroke="#2C4A5E" stroke-width="1.8"/>
+<rect x="1910" y="508" width="6" height="50" fill="#2C4A5E" rx="6" ry="6"/>
+<text x="1925" y="538.0" font-size="11" fill="#E8F0D8">9. Тил, медицина, психологія</text>
+</g>
+<path d="M 1896 533.0 L 1905 533.0" stroke="#7A8B6C" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<path d="M 2081.0 222 L 2081.0 365.0 L 258.0 365.0 L 258.0 506" stroke="#7A8B6C" stroke-width="2.5" fill="none" marker-end="url(#arr)" stroke-dasharray="6,3"/>
+<rect x="30" y="856" width="2340" height="36" rx="6" ry="6" fill="#5B3A29" opacity="0.92" filter="url(#sh2)"/>
+<text x="48" y="879.76" font-size="14" font-weight="bold" fill="#FFFFFF">III. Прийняття рішення</text>
+<g filter="url(#sh2)">
+<rect x="30" y="908" width="770" height="50" rx="6" ry="6" fill="#1F2E22" stroke="#5B3A29" stroke-width="1.8"/>
+<rect x="30" y="908" width="6" height="50" fill="#5B3A29" rx="6" ry="6"/>
+<text x="45" y="938.0" font-size="11" fill="#E8F0D8">10. Формування задуму</text>
+</g>
+<g filter="url(#sh2)">
+<rect x="814" y="908" width="770" height="50" rx="6" ry="6" fill="#1F2E22" stroke="#5B3A29" stroke-width="1.8"/>
+<rect x="814" y="908" width="6" height="50" fill="#5B3A29" rx="6" ry="6"/>
+<text x="829" y="938.0" font-size="11" fill="#E8F0D8">11. Визначення задач і взаємодії</text>
+</g>
+<path d="M 800 933.0 L 809 933.0" stroke="#7A8B6C" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<g filter="url(#sh2)">
+<rect x="1598" y="908" width="770" height="50" rx="6" ry="6" fill="#1F2E22" stroke="#5B3A29" stroke-width="1.8"/>
+<rect x="1598" y="908" width="6" height="50" fill="#5B3A29" rx="6" ry="6"/>
+<text x="1613" y="938.0" font-size="11" fill="#E8F0D8">12. Доповідь рішення командиру батальйону</text>
+</g>
+<path d="M 1584 933.0 L 1593 933.0" stroke="#7A8B6C" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<path d="M 2138.0 558 L 2138.0 733.0 L 415.0 733.0 L 415.0 906" stroke="#7A8B6C" stroke-width="2.5" fill="none" marker-end="url(#arr)" stroke-dasharray="6,3"/>
+<rect x="30" y="1128" width="2340" height="36" rx="6" ry="6" fill="#4A3D5C" opacity="0.92" filter="url(#sh2)"/>
+<text x="48" y="1151.76" font-size="14" font-weight="bold" fill="#FFFFFF">IV. Постановка задач</text>
+<g filter="url(#sh2)">
+<rect x="30" y="1180" width="456" height="50" rx="6" ry="6" fill="#1F2E22" stroke="#4A3D5C" stroke-width="1.8"/>
+<rect x="30" y="1180" width="6" height="50" fill="#4A3D5C" rx="6" ry="6"/>
+<text x="45" y="1210.0" font-size="11" fill="#E8F0D8">13. Бойовий наказ по роті</text>
+</g>
+<g filter="url(#sh2)">
+<rect x="500" y="1180" width="456" height="50" rx="6" ry="6" fill="#1F2E22" stroke="#4A3D5C" stroke-width="1.8"/>
+<rect x="500" y="1180" width="6" height="50" fill="#4A3D5C" rx="6" ry="6"/>
+<text x="515" y="1210.0" font-size="11" fill="#E8F0D8">14. ГОІ</text>
+</g>
+<path d="M 486 1205.0 L 495 1205.0" stroke="#7A8B6C" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<g filter="url(#sh2)">
+<rect x="970" y="1180" width="456" height="50" rx="6" ry="6" fill="#1F2E22" stroke="#4A3D5C" stroke-width="1.8"/>
+<rect x="970" y="1180" width="6" height="50" fill="#4A3D5C" rx="6" ry="6"/>
+<text x="985" y="1210.0" font-size="11" fill="#E8F0D8">15. 1 Взвод РР</text>
+</g>
+<path d="M 956 1205.0 L 965 1205.0" stroke="#7A8B6C" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<g filter="url(#sh2)">
+<rect x="1440" y="1180" width="456" height="50" rx="6" ry="6" fill="#1F2E22" stroke="#4A3D5C" stroke-width="1.8"/>
+<rect x="1440" y="1180" width="6" height="50" fill="#4A3D5C" rx="6" ry="6"/>
+<text x="1455" y="1210.0" font-size="11" fill="#E8F0D8">16. 2 Взвод РР</text>
+</g>
+<path d="M 1426 1205.0 L 1435 1205.0" stroke="#7A8B6C" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<g filter="url(#sh2)">
+<rect x="1910" y="1180" width="456" height="50" rx="6" ry="6" fill="#1F2E22" stroke="#4A3D5C" stroke-width="1.8"/>
+<rect x="1910" y="1180" width="6" height="50" fill="#4A3D5C" rx="6" ry="6"/>
+<text x="1925" y="1210.0" font-size="11" fill="#E8F0D8">17. Взвод РЕР</text>
+</g>
+<path d="M 1896 1205.0 L 1905 1205.0" stroke="#7A8B6C" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<g filter="url(#sh2)">
+<rect x="30" y="1244" width="456" height="50" rx="6" ry="6" fill="#1F2E22" stroke="#4A3D5C" stroke-width="1.8"/>
+<rect x="30" y="1244" width="6" height="50" fill="#4A3D5C" rx="6" ry="6"/>
+<text x="45" y="1274.0" font-size="11" fill="#E8F0D8">18. Взвод БпАК</text>
+</g>
+<path d="M 2138.0 1230 L 2138.0 1238 L 258.0 1238 L 258.0 1242" stroke="#7A8B6C" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<g filter="url(#sh2)">
+<rect x="500" y="1244" width="456" height="50" rx="6" ry="6" fill="#1F2E22" stroke="#4A3D5C" stroke-width="1.8"/>
+<rect x="500" y="1244" width="6" height="50" fill="#4A3D5C" rx="6" ry="6"/>
+<text x="515" y="1274.0" font-size="11" fill="#E8F0D8">19. РМО</text>
+</g>
+<path d="M 486 1269.0 L 495 1269.0" stroke="#7A8B6C" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<path d="M 1983.0 958 L 1983.0 1069.0 L 258.0 1069.0 L 258.0 1178" stroke="#7A8B6C" stroke-width="2.5" fill="none" marker-end="url(#arr)" stroke-dasharray="6,3"/>
+<rect x="30" y="1656" width="2340" height="36" rx="6" ry="6" fill="#5C4A2C" opacity="0.92" filter="url(#sh2)"/>
+<text x="48" y="1679.76" font-size="14" font-weight="bold" fill="#FFFFFF">V. Забезпечення та взаємодія</text>
+<g filter="url(#sh2)">
+<rect x="30" y="1708" width="456" height="50" rx="6" ry="6" fill="#1F2E22" stroke="#5C4A2C" stroke-width="1.8"/>
+<rect x="30" y="1708" width="6" height="50" fill="#5C4A2C" rx="6" ry="6"/>
+<text x="45" y="1738.0" font-size="11" fill="#E8F0D8">20. Розвід.-інф. обмін</text>
+</g>
+<g filter="url(#sh2)">
+<rect x="500" y="1708" width="456" height="50" rx="6" ry="6" fill="#1F2E22" stroke="#5C4A2C" stroke-width="1.8"/>
+<rect x="500" y="1708" width="6" height="50" fill="#5C4A2C" rx="6" ry="6"/>
+<text x="515" y="1738.0" font-size="11" fill="#E8F0D8">21. Зв'язок та управління</text>
+</g>
+<path d="M 486 1733.0 L 495 1733.0" stroke="#7A8B6C" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<g filter="url(#sh2)">
+<rect x="970" y="1708" width="456" height="50" rx="6" ry="6" fill="#1F2E22" stroke="#5C4A2C" stroke-width="1.8"/>
+<rect x="970" y="1708" width="6" height="50" fill="#5C4A2C" rx="6" ry="6"/>
+<text x="985" y="1738.0" font-size="11" fill="#E8F0D8">22. Тил, ЗІП, ПММ, харчування</text>
+</g>
+<path d="M 956 1733.0 L 965 1733.0" stroke="#7A8B6C" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<g filter="url(#sh2)">
+<rect x="1440" y="1708" width="456" height="50" rx="6" ry="6" fill="#1F2E22" stroke="#5C4A2C" stroke-width="1.8"/>
+<rect x="1440" y="1708" width="6" height="50" fill="#5C4A2C" rx="6" ry="6"/>
+<text x="1455" y="1738.0" font-size="11" fill="#E8F0D8">23. Медичне забезпечення</text>
+</g>
+<path d="M 1426 1733.0 L 1435 1733.0" stroke="#7A8B6C" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<g filter="url(#sh2)">
+<rect x="1910" y="1708" width="456" height="50" rx="6" ry="6" fill="#1F2E22" stroke="#5C4A2C" stroke-width="1.8"/>
+<rect x="1910" y="1708" width="6" height="50" fill="#5C4A2C" rx="6" ry="6"/>
+<text x="1925" y="1738.0" font-size="11" fill="#E8F0D8">24. Психологічна підтримка</text>
+</g>
+<path d="M 1896 1733.0 L 1905 1733.0" stroke="#7A8B6C" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<path d="M 728.0 1294 L 728.0 1501.0 L 258.0 1501.0 L 258.0 1706" stroke="#7A8B6C" stroke-width="2.5" fill="none" marker-end="url(#arr)" stroke-dasharray="6,3"/>
+<rect x="30" y="2056" width="2340" height="36" rx="6" ry="6" fill="#3D5A2C" opacity="0.92" filter="url(#sh2)"/>
+<text x="48" y="2079.76" font-size="14" font-weight="bold" fill="#FFFFFF">VI. Контроль і виконання</text>
+<g filter="url(#sh2)">
+<rect x="30" y="2108" width="770" height="50" rx="6" ry="6" fill="#1F2E22" stroke="#3D5A2C" stroke-width="1.8"/>
+<rect x="30" y="2108" width="6" height="50" fill="#3D5A2C" rx="6" ry="6"/>
+<text x="45" y="2138.0" font-size="11" fill="#E8F0D8">25. Контроль готовності</text>
+</g>
+<g filter="url(#sh2)">
+<rect x="814" y="2108" width="770" height="50" rx="6" ry="6" fill="#1F2E22" stroke="#3D5A2C" stroke-width="1.8"/>
+<rect x="814" y="2108" width="6" height="50" fill="#3D5A2C" rx="6" ry="6"/>
+<text x="829" y="2138.0" font-size="11" fill="#E8F0D8">26. Виконання БЗ — ведення розвідки</text>
+</g>
+<path d="M 800 2133.0 L 809 2133.0" stroke="#7A8B6C" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<g filter="url(#sh2)">
+<rect x="1598" y="2108" width="770" height="50" rx="6" ry="6" fill="#1F2E22" stroke="#3D5A2C" stroke-width="1.8"/>
+<rect x="1598" y="2108" width="6" height="50" fill="#3D5A2C" rx="6" ry="6"/>
+<text x="1613" y="2138.0" font-size="11" fill="#E8F0D8">27. Поточний контроль і коригування</text>
+</g>
+<path d="M 1584 2133.0 L 1593 2133.0" stroke="#7A8B6C" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<path d="M 2138.0 1758 L 2138.0 1933.0 L 415.0 1933.0 L 415.0 2106" stroke="#7A8B6C" stroke-width="2.5" fill="none" marker-end="url(#arr)" stroke-dasharray="6,3"/>
+<rect x="30" y="2328" width="2340" height="36" rx="6" ry="6" fill="#2C4A5E" opacity="0.92" filter="url(#sh2)"/>
+<text x="48" y="2351.76" font-size="14" font-weight="bold" fill="#FFFFFF">VII. Доповіді та підсумки</text>
+<g filter="url(#sh2)">
+<rect x="30" y="2380" width="770" height="50" rx="6" ry="6" fill="#1F2E22" stroke="#2C4A5E" stroke-width="1.8"/>
+<rect x="30" y="2380" width="6" height="50" fill="#2C4A5E" rx="6" ry="6"/>
+<text x="45" y="2410.0" font-size="11" fill="#E8F0D8">28. Поточні доповіді до КБ</text>
+</g>
+<g filter="url(#sh2)">
+<rect x="814" y="2380" width="770" height="50" rx="6" ry="6" fill="#1F2E22" stroke="#2C4A5E" stroke-width="1.8"/>
+<rect x="814" y="2380" width="6" height="50" fill="#2C4A5E" rx="6" ry="6"/>
+<text x="829" y="2410.0" font-size="11" fill="#E8F0D8">29. Підсумкова доповідь за добу</text>
+</g>
+<path d="M 800 2405.0 L 809 2405.0" stroke="#7A8B6C" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<g filter="url(#sh2)">
+<rect x="1598" y="2380" width="770" height="50" rx="6" ry="6" fill="#1F2E22" stroke="#2C4A5E" stroke-width="1.8"/>
+<rect x="1598" y="2380" width="6" height="50" fill="#2C4A5E" rx="6" ry="6"/>
+<text x="1613" y="2410.0" font-size="11" fill="#E8F0D8">30. Постановка задач на наст. добу</text>
+</g>
+<path d="M 1584 2405.0 L 1593 2405.0" stroke="#7A8B6C" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<path d="M 1983.0 2158 L 1983.0 2269.0 L 415.0 2269.0 L 415.0 2378" stroke="#7A8B6C" stroke-width="2.5" fill="none" marker-end="url(#arr)" stroke-dasharray="6,3"/>
+<path d="M 2368 2405.0 L 2385 2405.0 L 2385 197.0 L 604 197.0" stroke="#D4A06A" stroke-width="2" fill="none" marker-end="url(#arr)" stroke-dasharray="4,4" opacity="0.8"/>
+<text x="2378" y="1301.0" font-size="10" fill="#D4A06A" text-anchor="end">наступна доба</text>
+</svg>
