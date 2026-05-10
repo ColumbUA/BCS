@@ -15,10 +15,12 @@ const REQUIRED = ["passport", "ipn", "military_id"];
 
 export default function SoldiersTab({ structure, showToast, forceOpenId, clearOpenId }) {
   const { ax, user } = useAuth();
+  const editable = can.edit(user);
   const [soldiers, setSoldiers] = useState([]);
   const [filter, setFilter] = useState("");
   const [unitFilter, setUnitFilter] = useState("");
   const [selected, setSelected] = useState(null);
+  const [showCreate, setShowCreate] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const reload = async () => {
@@ -69,6 +71,11 @@ export default function SoldiersTab({ structure, showToast, forceOpenId, clearOp
           <option value="">Усі підрозділи</option>
           {subunits.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
+        {editable && (
+          <button className="btn-mil btn-mil-primary text-sm" onClick={() => setShowCreate(true)} data-testid="btn-add-soldier">
+            + Додати картку
+          </button>
+        )}
         {can.commander(user) && (
           <button className="btn-mil text-sm" onClick={seedFromBchs} data-testid="seed-soldiers">
             Створити картки з БЧС
@@ -81,7 +88,7 @@ export default function SoldiersTab({ structure, showToast, forceOpenId, clearOp
 
       {filtered.length === 0 ? (
         <div className="text-center py-12 bg-mil border border-dashed border-mil rounded-lg" style={{ color: "#5C6E54" }}>
-          Карток ще немає. Командир може створити їх з БЧС однією кнопкою.
+          Карток ще немає. {editable && "Натисніть «+ Додати картку» або «Створити картки з БЧС»."}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -112,8 +119,134 @@ export default function SoldiersTab({ structure, showToast, forceOpenId, clearOp
       {selected && (
         <SoldierDetail id={selected} onClose={() => { setSelected(null); reload(); }} showToast={showToast} />
       )}
+      {showCreate && (
+        <CreateSoldierModal
+          subunits={subunits}
+          onClose={() => setShowCreate(false)}
+          onCreated={(newId) => { setShowCreate(false); reload(); setSelected(newId); }}
+          showToast={showToast}
+        />
+      )}
     </div>
   );
+}
+
+
+function CreateSoldierModal({ subunits, onClose, onCreated, showToast }) {
+  const { ax } = useAuth();
+  const [form, setForm] = useState({
+    fio: "", callsign: "", rank: "солдат", position: "", node_path: subunits[0] || "",
+    birth_date: "", mobilized_at: "", bzvp_passed_at: "", ktz_passed_at: "",
+    blood_group: "", has_driver_license: false, notes: "",
+    education: [], certificates: [],
+  });
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!form.fio.trim()) { showToast("Вкажіть ПІБ", "err"); return; }
+    setBusy(true);
+    try {
+      const r = await ax().post("/soldiers", form);
+      showToast(`✓ Картку створено: ${r.data.fio}`);
+      onCreated(r.data.id);
+    } catch (e) { showToast(e.response?.data?.detail || "Помилка", "err"); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+         style={{ background: "rgba(14,26,20,.85)", backdropFilter: "blur(6px)" }} onClick={onClose}>
+      <form className="bg-mil border border-mil rounded-lg w-full max-w-2xl p-6"
+            onSubmit={submit} onClick={(e) => e.stopPropagation()}>
+        <div className="flex justify-between items-start mb-4">
+          <div>
+            <div className="text-xs uppercase tracking-wider" style={{ color: "#7A8B6C" }}>Нова картка</div>
+            <h2 className="text-xl font-bold text-accent">+ Додати картку військовослужбовця</h2>
+            <div className="text-xs mt-1" style={{ color: "#7A8B6C" }}>
+              Після створення можна буде завантажити документи у детальній формі
+            </div>
+          </div>
+          <button type="button" className="btn-mil text-xs" onClick={onClose}>✕</button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="md:col-span-2">
+            <Field label="ПІБ *">
+              <input className="input-mil" required value={form.fio}
+                     onChange={(e) => setForm({...form, fio: e.target.value})}
+                     placeholder="ПЕТРЕНКО Іван Іванович" data-testid="new-fio" autoFocus />
+            </Field>
+          </div>
+          <Field label="Позивний">
+            <input className="input-mil" value={form.callsign}
+                   onChange={(e) => setForm({...form, callsign: e.target.value})}
+                   placeholder="напр. ВЕДМІДЬ" data-testid="new-callsign" />
+          </Field>
+          <Field label="Звання">
+            <input className="input-mil" value={form.rank}
+                   onChange={(e) => setForm({...form, rank: e.target.value})}
+                   placeholder="солдат / молодший сержант / лейтенант" data-testid="new-rank" />
+          </Field>
+          <Field label="Посада">
+            <input className="input-mil" value={form.position}
+                   onChange={(e) => setForm({...form, position: e.target.value})}
+                   placeholder="Розвідник-оператор" data-testid="new-position" />
+          </Field>
+          <Field label="Підрозділ *">
+            <select className="input-mil" required value={form.node_path}
+                    onChange={(e) => setForm({...form, node_path: e.target.value})} data-testid="new-node">
+              {subunits.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </Field>
+          <Field label="Дата народження">
+            <input type="date" className="input-mil" value={form.birth_date}
+                   onChange={(e) => setForm({...form, birth_date: e.target.value})} />
+          </Field>
+          <Field label="Дата мобілізації">
+            <input type="date" className="input-mil" value={form.mobilized_at}
+                   onChange={(e) => setForm({...form, mobilized_at: e.target.value})} />
+          </Field>
+          <Field label="Група крові">
+            <input className="input-mil" placeholder="O(I) Rh+" value={form.blood_group}
+                   onChange={(e) => setForm({...form, blood_group: e.target.value})} />
+          </Field>
+          <div>
+            <label className="text-xs uppercase block mb-1" style={{ color: "#7A8B6C" }}>Водійське посвідчення</label>
+            <label className="flex items-center gap-2 mt-2">
+              <input type="checkbox" checked={form.has_driver_license}
+                     onChange={(e) => setForm({...form, has_driver_license: e.target.checked})} />
+              <span className="text-sm">Має ВП</span>
+            </label>
+          </div>
+          <div className="md:col-span-2">
+            <Field label="Примітки">
+              <input className="input-mil" value={form.notes}
+                     onChange={(e) => setForm({...form, notes: e.target.value})}
+                     placeholder="довільний текст" />
+            </Field>
+          </div>
+        </div>
+
+        <div className="flex gap-2 mt-5">
+          <button type="submit" className="btn-mil btn-mil-primary" disabled={busy} data-testid="new-submit">
+            {busy ? "Створення…" : "Створити та відкрити"}
+          </button>
+          <button type="button" className="btn-mil" onClick={onClose}>Скасувати</button>
+        </div>
+
+        <div className="text-xs mt-4" style={{ color: "#5C6E54" }}>
+          ℹ Після створення відкриється детальна картка, де можна додати освіту,
+          сертифікати та завантажити скани документів (паспорт/ІПН/диплом/ВП/військовий квиток).
+        </div>
+      </form>
+    </div>
+  );
+}
+
+
+function Field({ label, children }) {
+  return <div><label className="text-xs uppercase block mb-1" style={{ color: "#7A8B6C" }}>{label}</label>{children}</div>;
 }
 
 
