@@ -253,6 +253,7 @@ function Field({ label, children }) {
 function SoldierDetail({ id, onClose, showToast }) {
   const { ax, user } = useAuth();
   const editable = can.edit(user);
+  const isCommander = user?.role === "COMMANDER";
   const [s, setS] = useState(null);
   const [form, setForm] = useState(null);
   const [files, setFiles] = useState([]);
@@ -272,6 +273,15 @@ function SoldierDetail({ id, onClose, showToast }) {
       await ax().put(`/soldiers/${id}`, payload);
       showToast("✓ Збережено");
       load();
+    } catch (e) { showToast(e.response?.data?.detail || "Помилка", "err"); }
+  };
+
+  const removeSoldier = async () => {
+    if (!window.confirm(`Видалити картку «${s.fio}»?\n\nРАЗОМ З УСІМА ДОКУМЕНТАМИ. Дію неможливо скасувати.`)) return;
+    try {
+      await ax().delete(`/soldiers/${id}`);
+      showToast(`✓ Картку «${s.fio}» видалено`);
+      onClose();
     } catch (e) { showToast(e.response?.data?.detail || "Помилка", "err"); }
   };
 
@@ -322,7 +332,14 @@ function SoldierDetail({ id, onClose, showToast }) {
               {s.position} {s.callsign && <span className="text-blue">• «{s.callsign}»</span>} • {s.node_path}
             </div>
           </div>
-          <button className="btn-mil text-xs" onClick={onClose}>✕</button>
+          <div className="flex gap-2">
+            {isCommander && (
+              <button className="btn-mil btn-mil-danger text-xs" onClick={removeSoldier} data-testid="btn-delete-soldier">
+                ✕ Видалити картку
+              </button>
+            )}
+            <button className="btn-mil text-xs" onClick={onClose}>✕</button>
+          </div>
         </div>
 
         <div className="p-5 space-y-5">
