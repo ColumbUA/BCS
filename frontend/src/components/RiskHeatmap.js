@@ -13,11 +13,13 @@ export default function RiskHeatmap({ showToast }) {
   const [loading, setLoading] = useState(false);
   const [riskFilter, setRiskFilter] = useState("all"); // all | red | yellow | green
   const [subunitFilter, setSubunitFilter] = useState("");
+  const [onDate, setOnDate] = useState("");   // "" = сьогодні
 
   const reload = async () => {
     setLoading(true);
     try {
-      const r = await ax().get("/risk-heatmap");
+      const q = onDate ? `?on_date=${onDate}` : "";
+      const r = await ax().get(`/risk-heatmap${q}`);
       setData(r.data);
     } catch (e) {
       showToast?.(e.response?.data?.detail || "Помилка завантаження", "err");
@@ -26,7 +28,7 @@ export default function RiskHeatmap({ showToast }) {
     }
   };
 
-  useEffect(() => { reload(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { reload(); /* eslint-disable-next-line */ }, [onDate]);
 
   const filteredSoldiers = useMemo(() => {
     if (!data) return [];
@@ -57,12 +59,23 @@ export default function RiskHeatmap({ showToast }) {
             <div className="text-xs uppercase mb-1" style={{ color: "#7A8B6C" }}>Командир, увага!</div>
             <h2 className="text-lg font-bold">🔥 Карта ризиків особового складу</h2>
             <div className="text-xs mt-1" style={{ color: "#7A8B6C" }}>
-              Оновлено: {data.generated_at?.slice(0, 19).replace("T", " ")} UTC
+              На дату: <b style={{ color: "#D8C36A" }}>{data.on_date || "сьогодні"}</b>
+              {" • "}Згенеровано: {data.generated_at?.slice(0, 19).replace("T", " ")} UTC
             </div>
           </div>
-          <button className="btn-mil text-xs" onClick={reload} disabled={loading} data-testid="btn-heatmap-reload">
-            {loading ? "⏳" : "↻ Перерахувати"}
-          </button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <input type="date" className="input-mil text-sm" value={onDate}
+                   onChange={(e) => setOnDate(e.target.value)}
+                   title="Показати стан на дату"
+                   data-testid="heatmap-date" />
+            {onDate && (
+              <button className="btn-mil text-xs" onClick={() => setOnDate("")}
+                      title="Сьогодні" data-testid="heatmap-date-reset">↩ Сьогодні</button>
+            )}
+            <button className="btn-mil text-xs" onClick={reload} disabled={loading} data-testid="btn-heatmap-reload">
+              {loading ? "⏳" : "↻"}
+            </button>
+          </div>
         </div>
 
         {/* TOTAL BAR */}

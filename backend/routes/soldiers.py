@@ -94,21 +94,164 @@ def _scope_filter(user) -> dict:
     return {"id": "__none__"}
 
 
+# ============================ LOCATION ENTRIES ============================
+# Кожен запис = "З цієї дати солдат має статус X у місці Y".
+# Локація на конкретну дату = найсвіжіший запис з effective_date <= D.
+
+
+class LocationEntryBase(BaseModel):
+    """Запис локації солдата на конкретну дату."""
+    model_config = ConfigDict(extra="forbid")
+    effective_date: str   # YYYY-MM-DD (коли стає в силі)
+    status: str           # ППД / РЗ / РВ / Відрядження / СЗЧ / ВЛК / Лікарня / Відпустка / Інше
+    place: str = ""       # н.п., адреса, координати
+    note: str = ""        # коментар
+
+
+class LocationEntry(LocationEntryBase):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    soldier_id: str
+    created_at: str = Field(default_factory=now_iso)
+    created_by: str = ""
+
+
+def _parse_date(s: str) -> Optional[datetime.date]:
+    """Безпечно парсимо YYYY-MM-DD або ISO."""
+    if not s:
+        return None
+    try:
+        return datetime.date.fromisoformat(s[:10])
+    except Exception:
+        return None
+
+
+async def _compute_location(soldier_id: str, on_date: Optional[datetime.date] = None) -> Optional[dict]:
+    """Знайти запис локації, що актуальний на on_date (за замовчуванням сьогодні)."""
+    if on_date is None:
+        on_date = datetime.date.today()
+    cur = db.location_entries.find(
+        {"soldier_id": soldier_id, "effective_date": {"$lte": on_date.isoformat()}},
+        {"_id": 0}
+    ).sort("effective_date", -1).limit(1)
+    items = await cur.to_list(1)
+    return items[0] if items else None
+
+
+async def _apply_location_to_soldier(soldier_id: str, on_date: Optional[datetime.date] = None):
+    """Перерахувати location_status/location_place у самій картці на основі записів."""
+    entry = await _compute_location(soldier_id, on_date)
+    if entry:
+        upd = {
+            "location_status": entry["status"],
+            "location_place": entry.get("place", ""),
+            "location_updated_at": now_iso(),
+        }
+        await db.soldiers.update_one({"id": soldier_id}, {"$set": upd})
+
+
+@router.get("/soldiers/{sid}/locations")
+async def list_locations(sid: str, user=Depends(get_current_user)):
+    """Усі записи локацій солдата у хронологічному порядку."""
+    s = await db.soldiers.find_one({"id": sid}, {"_id": 0, "node_path": 1})
+    if not s:
+        raise HTTPException(404, "Картку не знайдено")
+    if not _is_in_scope(user, s.get("node_path", "")):
+        raise HTTPException(403, "Немає доступу")
+    items = await db.location_entries.find(
+        {"soldier_id": sid}, {"_id": 0}
+    ).sort("effective_date", 1).to_list(500)
+    return {"items": items, "today": datetime.date.today().isoformat()}
+
+
+@router.post("/soldiers/{sid}/locations", response_model=LocationEntry)
+async def add_location(sid: str, payload: LocationEntryBase, user=Depends(can_edit)):
+    """Додати запис локації (поточний або планований)."""
+    s = await db.soldiers.find_one({"id": sid}, {"_id": 0})
+    if not s:
+        raise HTTPException(404, "Картку не знайдено")
+    if not _is_in_scope(user, s.get("node_path", "")):
+        raise HTTPException(403, "Немає доступу")
+    d = _parse_date(payload.effective_date)
+    if not d:
+        raise HTTPException(400, "Невірна дата (YYYY-MM-DD)")
+    entry = LocationEntry(**payload.model_dump(), soldier_id=sid, created_by=user.username)
+    await db.location_entries.insert_one(entry.model_dump())
+    # Якщо запис на сьогодні або раніше — оновити поточну локацію у картці
+    if d <= datetime.date.today():
+        await _apply_location_to_soldier(sid)
+    return entry
+
+
+@router.delete("/locations/{lid}")
+async def delete_location(lid: str, user=Depends(can_edit)):
+    """Видалити запис локації."""
+    entry = await db.location_entries.find_one({"id": lid}, {"_id": 0})
+    if not entry:
+        raise HTTPException(404, "Не знайдено")
+    s = await db.soldiers.find_one({"id": entry["soldier_id"]}, {"_id": 0, "node_path": 1})
+    if s and not _is_in_scope(user, s.get("node_path", "")):
+        raise HTTPException(403, "Немає доступу")
+    await db.location_entries.delete_one({"id": lid})
+    # Перерахувати поточну локацію
+    if s:
+        await _apply_location_to_soldier(entry["soldier_id"])
+    return {"deleted": lid}
+
+
+@router.post("/admin/locations/recompute-all")
+async def recompute_all_locations(user=Depends(commander_only)):
+    """Перерахувати location_status/place всіх солдатів на сьогодні.
+
+    Викликається після зміни/видалення записів, або з адмін-панелі.
+    """
+    today = datetime.date.today()
+    cur = db.soldiers.find({}, {"_id": 0, "id": 1})
+    updated = 0
+    async for s in cur:
+        await _apply_location_to_soldier(s["id"], today)
+        updated += 1
+    return {"updated": updated, "on_date": today.isoformat()}
+
+
 # ============================ SOLDIERS CRUD ============================
 
 @router.get("/soldiers", response_model=List[Soldier])
-async def list_soldiers(user=Depends(get_current_user)):
+async def list_soldiers(on_date: Optional[str] = None, user=Depends(get_current_user)):
     q = _scope_filter(user)
-    return await db.soldiers.find(q, {"_id": 0}).to_list(500)
+    items = await db.soldiers.find(q, {"_id": 0}).to_list(500)
+    # Якщо передано on_date — overlay поточної локації з location_entries
+    if on_date:
+        d = _parse_date(on_date)
+        if d is None:
+            raise HTTPException(400, "Невірна дата (YYYY-MM-DD)")
+        for s in items:
+            entry = await _compute_location(s["id"], d)
+            if entry:
+                s["location_status"] = entry["status"]
+                s["location_place"] = entry.get("place", "")
+                s["location_updated_at"] = entry.get("effective_date", "")
+            else:
+                # Якщо записів немає — обнуляємо overlay (показуємо як ППД за замовчуванням)
+                pass
+    return items
 
 
 @router.get("/soldiers/{sid}", response_model=Soldier)
-async def get_soldier(sid: str, user=Depends(get_current_user)):
+async def get_soldier(sid: str, on_date: Optional[str] = None, user=Depends(get_current_user)):
     s = await db.soldiers.find_one({"id": sid}, {"_id": 0})
     if not s:
         raise HTTPException(404, "Картку не знайдено")
     if not _is_in_scope(user, s.get("node_path", "")):
         raise HTTPException(403, "Немає доступу до цієї картки")
+    if on_date:
+        d = _parse_date(on_date)
+        if d is None:
+            raise HTTPException(400, "Невірна дата (YYYY-MM-DD)")
+        entry = await _compute_location(sid, d)
+        if entry:
+            s["location_status"] = entry["status"]
+            s["location_place"] = entry.get("place", "")
+            s["location_updated_at"] = entry.get("effective_date", "")
     return s
 
 
@@ -269,8 +412,8 @@ def _risk_for_soldier(s: dict, active_transfers: dict) -> dict:
 
 
 @router.get("/risk-heatmap")
-async def get_risk_heatmap(user=Depends(get_current_user)):
-    """Heat-map ризиків особового складу.
+async def get_risk_heatmap(on_date: Optional[str] = None, user=Depends(get_current_user)):
+    """Heat-map ризиків особового складу на конкретну дату (за замовчуванням сьогодні).
 
     Повертає:
       {
@@ -278,11 +421,22 @@ async def get_risk_heatmap(user=Depends(get_current_user)):
         by_subunit: { node_path: {red, yellow, green, total} },
         soldiers: [{id, fio, callsign, node_path, position, risk, labels}],
         generated_at: ISO,
+        on_date: YYYY-MM-DD,
       }
     """
     q = _scope_filter(user)
     soldiers_list = await db.soldiers.find(q, {"_id": 0}).to_list(1000)
     sid_set = {s["id"] for s in soldiers_list}
+
+    # Overlay локації на on_date
+    target_date = _parse_date(on_date) if on_date else datetime.date.today()
+    if target_date is None:
+        raise HTTPException(400, "Невірна дата (YYYY-MM-DD)")
+    for s in soldiers_list:
+        entry = await _compute_location(s["id"], target_date)
+        if entry:
+            s["location_status"] = entry["status"]
+            s["location_place"] = entry.get("place", "")
 
     # Активні переміщення (submitted/approved) — по oldest на солдата
     active = {}
@@ -330,6 +484,7 @@ async def get_risk_heatmap(user=Depends(get_current_user)):
         "by_subunit": by_subunit,
         "soldiers": out,
         "generated_at": now_iso(),
+        "on_date": target_date.isoformat(),
     }
 
 

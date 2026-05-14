@@ -3,6 +3,7 @@ import { useAuth, can } from "../AuthContext";
 import { cls } from "./Common";
 import FilePreviewModal from "./FilePreviewModal";
 import TransferModal from "./TransferModal";
+import LocationsEditor from "./LocationsEditor";
 import { downloadAuthFile } from "../utils/download";
 
 const DOC_LABELS = {
@@ -38,17 +39,22 @@ export default function SoldiersTab({ structure, showToast, forceOpenId, clearOp
   const [filter, setFilter] = useState("");
   const [unitFilter, setUnitFilter] = useState("");
   const [locFilter, setLocFilter] = useState("");
+  const [onDate, setOnDate] = useState("");   // "" = сьогодні
   const [selected, setSelected] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const reload = async () => {
     setLoading(true);
-    try { const r = await ax().get("/soldiers"); setSoldiers(r.data); }
+    try {
+      const q = onDate ? `?on_date=${onDate}` : "";
+      const r = await ax().get(`/soldiers${q}`);
+      setSoldiers(r.data);
+    }
     finally { setLoading(false); }
   };
 
-  useEffect(() => { reload(); }, []);
+  useEffect(() => { reload(); /* eslint-disable-next-line */ }, [onDate]);
   useEffect(() => {
     if (forceOpenId) { setSelected(forceOpenId); clearOpenId && clearOpenId(); }
   }, [forceOpenId]);
@@ -106,6 +112,17 @@ export default function SoldiersTab({ structure, showToast, forceOpenId, clearOp
           <option value="">📍 Усі стани</option>
           {LOCATIONS.map(l => <option key={l} value={l}>{l}</option>)}
         </select>
+        <div className="flex items-center gap-1">
+          <input type="date" className="input-mil text-sm" style={{ width: "auto" }}
+                 value={onDate}
+                 onChange={(e) => setOnDate(e.target.value)}
+                 title="Показати стан на цю дату"
+                 data-testid="on-date-picker" />
+          {onDate && (
+            <button className="btn-mil text-xs" onClick={() => setOnDate("")} title="Скинути на сьогодні"
+                    data-testid="on-date-reset">✕</button>
+          )}
+        </div>
         <button className="btn-mil text-sm" onClick={() => downloadBchs("xlsx")} data-testid="dl-bchs-xlsx">⬇ БЧС .xlsx</button>
         <button className="btn-mil text-sm" onClick={() => downloadBchs("csv")} data-testid="dl-bchs-csv">⬇ БЧС .csv</button>
         {editable && (
@@ -119,6 +136,9 @@ export default function SoldiersTab({ structure, showToast, forceOpenId, clearOp
           </button>
         )}
         <div className="text-sm ml-auto" style={{ color: "#7A8B6C" }}>
+          {onDate && <span className="mr-2 px-2 py-0.5 rounded" style={{ background: "#2F3D26", color: "#D8C36A", fontSize: "11px" }}>
+            На {onDate}
+          </span>}
           Показано: <span className="text-accent font-bold">{filtered.length}</span> / {soldiers.length}
         </div>
       </div>
@@ -449,29 +469,25 @@ function SoldierDetail({ id, onClose, showToast }) {
                    actions={editable && (
                      <button type="button" className="btn-mil btn-mil-primary text-xs"
                              onClick={() => setShowTransfer(true)} data-testid="btn-transfer">
-                       🔄 Перемістити
+                       🔄 Перемістити (з роти)
                      </button>
                    )}>
             <Grid>
-              <Field2 label="Стан">
-                <select className="input-mil" value={form.location_status || "ППД"} disabled={!editable}
-                        onChange={(e) => setForm({...form, location_status: e.target.value,
-                                                  location_updated_at: new Date().toISOString().slice(0,10)})}
-                        data-testid="fld-loc-status">
-                  {LOCATIONS.map(l => <option key={l} value={l}>{l}</option>)}
-                </select>
+              <Field2 label="Поточний стан (за календарем)">
+                <input className="input-mil" value={form.location_status || "ППД"} disabled
+                       data-testid="fld-loc-status" />
               </Field2>
-              <Field2 label="Місце (н.п./адреса/координати)">
-                <input className="input-mil" value={form.location_place || ""} disabled={!editable}
-                       placeholder="напр. м.Покровськ / 50.123, 36.456"
-                       onChange={(e) => setForm({...form, location_place: e.target.value})} />
+              <Field2 label="Поточне місце">
+                <input className="input-mil" value={form.location_place || ""} disabled
+                       placeholder="зі статусу календаря" />
               </Field2>
             </Grid>
             {form.location_updated_at && (
-              <div className="text-xs mt-2" style={{ color: "#7A8B6C" }}>
-                Оновлено: {form.location_updated_at}
+              <div className="text-xs mt-2 mb-3" style={{ color: "#7A8B6C" }}>
+                Останнє оновлення: {form.location_updated_at?.slice(0, 19).replace("T", " ")}
               </div>
             )}
+            <LocationsEditor soldierId={id} showToast={showToast} />
           </Section>
 
           {/* Освіта */}
