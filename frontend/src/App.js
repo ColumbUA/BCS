@@ -11,6 +11,7 @@ import AmmoTab from "./components/AmmoTab";
 import NotificationsTab from "./components/NotificationsTab";
 import TemplatesTab from "./components/TemplatesTab";
 import WarehouseTab from "./components/WarehouseTab";
+import UsersTab from "./components/UsersTab";
 import { cls, Stat } from "./components/Common";
 
 function AppShell() {
@@ -127,6 +128,9 @@ function AppShell() {
           {can.material(user) && (
             <Tab id="notifications" cur={tab} onSelect={setTab}>📨 Сповіщення</Tab>
           )}
+          {can.commander(user) && (
+            <Tab id="users" cur={tab} onSelect={setTab}>🔐 Користувачі</Tab>
+          )}
           <Tab id="summary" cur={tab} onSelect={setTab}>📊 Зведення</Tab>
         </div>
       </header>
@@ -148,6 +152,9 @@ function AppShell() {
         {tab === "interactions" && <InteractionsTab interactions={interactions} structure={structure} channels={config?.interaction_channels || []} onChange={reload} showToast={showToast} />}
         {tab === "notifications" && can.material(user) && (
           <NotificationsTab showToast={showToast} onOpenSoldier={(id) => { setOpenSoldierId(id); setTab("soldiers"); }} />
+        )}
+        {tab === "users" && can.commander(user) && (
+          <UsersTab structure={structure} showToast={showToast} />
         )}
         {tab === "summary" && <SummaryTab equipment={equipment} interactions={interactions} structure={structure} showToast={showToast} />}
       </main>

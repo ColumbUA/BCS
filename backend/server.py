@@ -161,6 +161,139 @@ async def change_password(payload: dict, user=Depends(get_current_user)):
     return {"ok": True}
 
 
+# ============================ USERS MANAGEMENT (admin) ============================
+
+class UserRegister(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    username: str
+    password: str
+    name: str = ""
+    role: Literal["COMMANDER", "PLATOON_LEADER", "MATERIAL", "VIEWER"] = "VIEWER"
+    platoon: str = ""
+    # Дані картки (опціонально):
+    create_soldier_card: bool = True
+    fio: str = ""
+    callsign: str = ""
+    rank: str = ""
+    position: str = ""
+    node_path: str = ""
+    birth_date: str = ""
+    mobilized_at: str = ""
+    bzvp_passed_at: str = ""
+    ktz_passed_at: str = ""
+    blood_group: str = ""
+    has_driver_license: bool = False
+    notes: str = ""
+
+
+class UserUpdate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    name: Optional[str] = None
+    role: Optional[Literal["COMMANDER", "PLATOON_LEADER", "MATERIAL", "VIEWER"]] = None
+    platoon: Optional[str] = None
+    new_password: Optional[str] = None    # скидання пароля адміном
+
+
+@api_router.get("/users")
+async def list_users(user=Depends(commander_only)):
+    users = await db.users.find({}, {"_id": 0, "password_hash": 0, "totp_secret": 0}).to_list(500)
+    return users
+
+
+@api_router.post("/users/register")
+async def register_user(payload: UserRegister, user=Depends(commander_only)):
+    uname = payload.username.strip().lower()
+    if not uname:
+        raise HTTPException(400, "Логін обов'язковий")
+    if len(payload.password) < 6:
+        raise HTTPException(400, "Пароль ≥6 символів")
+    existing = await db.users.find_one({"username": uname})
+    if existing:
+        raise HTTPException(400, "Логін уже існує")
+
+    user_id = str(uuid.uuid4())
+    soldier_id = None
+    if payload.create_soldier_card and (payload.fio or payload.position):
+        # Створюємо картку
+        soldier_id = str(uuid.uuid4())
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        await db.soldiers.insert_one({
+            "id": soldier_id,
+            "fio": payload.fio or payload.name,
+            "callsign": payload.callsign,
+            "rank": payload.rank,
+            "position": payload.position,
+            "node_path": payload.node_path,
+            "birth_date": payload.birth_date,
+            "mobilized_at": payload.mobilized_at,
+            "bzvp_passed_at": payload.bzvp_passed_at,
+            "ktz_passed_at": payload.ktz_passed_at,
+            "blood_group": payload.blood_group,
+            "has_driver_license": payload.has_driver_license,
+            "education": [],
+            "certificates": [],
+            "documents": {},
+            "notes": payload.notes,
+            "created_at": now, "updated_at": now,
+            "created_by_user": user_id,
+        })
+
+    await db.users.insert_one({
+        "id": user_id,
+        "username": uname,
+        "password_hash": hash_password(payload.password),
+        "name": payload.name or payload.fio or uname,
+        "role": payload.role,
+        "platoon": payload.platoon,
+        "totp_secret": "", "totp_enabled": False,
+        "soldier_id": soldier_id,
+        "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "created_by": user.username,
+    })
+    return {"user_id": user_id, "soldier_id": soldier_id, "username": uname}
+
+
+@api_router.put("/users/{uid}")
+async def admin_update_user(uid: str, payload: UserUpdate, user=Depends(commander_only)):
+    upd = {k: v for k, v in payload.model_dump().items() if v is not None and k != "new_password"}
+    if payload.new_password:
+        if len(payload.new_password) < 6:
+            raise HTTPException(400, "Пароль ≥6 символів")
+        upd["password_hash"] = hash_password(payload.new_password)
+    if not upd:
+        raise HTTPException(400, "Нічого оновлювати")
+    res = await db.users.find_one_and_update(
+        {"id": uid}, {"$set": upd},
+        return_document=True, projection={"_id": 0, "password_hash": 0, "totp_secret": 0})
+    if not res:
+        raise HTTPException(404, "Не знайдено")
+    return res
+
+
+@api_router.delete("/users/{uid}")
+async def admin_delete_user(uid: str, user=Depends(commander_only)):
+    target = await db.users.find_one({"id": uid}, {"_id": 0})
+    if not target:
+        raise HTTPException(404, "Не знайдено")
+    if target["username"] == "admin":
+        raise HTTPException(400, "Системного admin видалити не можна")
+    if target["id"] == user.id:
+        raise HTTPException(400, "Не можна видалити власний акаунт")
+    # Видаляємо лінковану картку якщо є
+    if target.get("soldier_id"):
+        sold = await db.soldiers.find_one({"id": target["soldier_id"]}, {"_id": 0})
+        if sold:
+            for fid in (sold.get("documents") or {}).values():
+                p = DOCS_DIR / fid
+                if p.exists():
+                    try: p.unlink()
+                    except Exception: pass
+            await db.doc_files.delete_many({"soldier_id": target["soldier_id"]})
+            await db.soldiers.delete_one({"id": target["soldier_id"]})
+    await db.users.delete_one({"id": uid})
+    return {"deleted": uid}
+
+
 # ============================ STRUCTURE ROUTES ============================
 
 @api_router.get("/structure")

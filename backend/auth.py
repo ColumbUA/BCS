@@ -213,6 +213,7 @@ DEFAULT_USERS = [
     ("ngoi",       "goi2026",     "Начальник Групи обробки інформації",                "PLATOON_LEADER", "Група обробки інформації"),
     ("starshyna",  "starsh2026",  "Головний сержант роти",                             "MATERIAL",       ""),
     ("dilovod",    "dilo2026",    "Діловод роти",                                      "MATERIAL",       ""),
+    ("malvina",    "malvina2026", "МАЛЬВІНА — діловод/бухгалтер роти",                 "MATERIAL",       ""),
 ]
 
 
