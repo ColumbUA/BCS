@@ -219,20 +219,18 @@ async def recompute_all_locations(user=Depends(commander_only)):
 async def list_soldiers(on_date: Optional[str] = None, user=Depends(get_current_user)):
     q = _scope_filter(user)
     items = await db.soldiers.find(q, {"_id": 0}).to_list(500)
-    # Якщо передано on_date — overlay поточної локації з location_entries
+    # Overlay лише якщо запитана дата ВІДРІЗНЯЄТЬСЯ від сьогодні
     if on_date:
         d = _parse_date(on_date)
         if d is None:
             raise HTTPException(400, "Невірна дата (YYYY-MM-DD)")
-        for s in items:
-            entry = await _compute_location(s["id"], d)
-            if entry:
-                s["location_status"] = entry["status"]
-                s["location_place"] = entry.get("place", "")
-                s["location_updated_at"] = entry.get("effective_date", "")
-            else:
-                # Якщо записів немає — обнуляємо overlay (показуємо як ППД за замовчуванням)
-                pass
+        if d != datetime.date.today():
+            for s in items:
+                entry = await _compute_location(s["id"], d)
+                if entry:
+                    s["location_status"] = entry["status"]
+                    s["location_place"] = entry.get("place", "")
+                    s["location_updated_at"] = entry.get("effective_date", "")
     return items
 
 
@@ -247,11 +245,12 @@ async def get_soldier(sid: str, on_date: Optional[str] = None, user=Depends(get_
         d = _parse_date(on_date)
         if d is None:
             raise HTTPException(400, "Невірна дата (YYYY-MM-DD)")
-        entry = await _compute_location(sid, d)
-        if entry:
-            s["location_status"] = entry["status"]
-            s["location_place"] = entry.get("place", "")
-            s["location_updated_at"] = entry.get("effective_date", "")
+        if d != datetime.date.today():
+            entry = await _compute_location(sid, d)
+            if entry:
+                s["location_status"] = entry["status"]
+                s["location_place"] = entry.get("place", "")
+                s["location_updated_at"] = entry.get("effective_date", "")
     return s
 
 
@@ -277,6 +276,30 @@ async def update_soldier(sid: str, payload: SoldierBase, user=Depends(can_edit))
         raise HTTPException(403, "Зміна підрозділу через PUT заборонена; використайте /transfers")
     upd = payload.model_dump()
     upd["updated_at"] = now_iso()
+    # Якщо вручну змінилась поточна локація — синхронізуємо з календарем на today
+    today = datetime.date.today().isoformat()
+    new_status = upd.get("location_status", "") or ""
+    new_place = upd.get("location_place", "") or ""
+    old_status = (existing.get("location_status") or "")
+    old_place = (existing.get("location_place") or "")
+    if new_status and (new_status != old_status or new_place != old_place):
+        upd["location_updated_at"] = upd["updated_at"]
+        # Upsert запис на today
+        existing_today = await db.location_entries.find_one(
+            {"soldier_id": sid, "effective_date": today}, {"_id": 0}
+        )
+        if existing_today:
+            await db.location_entries.update_one(
+                {"id": existing_today["id"]},
+                {"$set": {"status": new_status, "place": new_place,
+                          "note": "Ручне оновлення"}}
+            )
+        else:
+            entry = LocationEntry(
+                effective_date=today, status=new_status, place=new_place,
+                note="Ручне оновлення", soldier_id=sid, created_by=user.username,
+            )
+            await db.location_entries.insert_one(entry.model_dump())
     res = await db.soldiers.find_one_and_update({"id": sid}, {"$set": upd},
                                                 return_document=True, projection={"_id": 0})
     return res
@@ -428,15 +451,16 @@ async def get_risk_heatmap(on_date: Optional[str] = None, user=Depends(get_curre
     soldiers_list = await db.soldiers.find(q, {"_id": 0}).to_list(1000)
     sid_set = {s["id"] for s in soldiers_list}
 
-    # Overlay локації на on_date
+    # Overlay локації на on_date — тільки якщо on_date відрізняється від today
     target_date = _parse_date(on_date) if on_date else datetime.date.today()
     if target_date is None:
         raise HTTPException(400, "Невірна дата (YYYY-MM-DD)")
-    for s in soldiers_list:
-        entry = await _compute_location(s["id"], target_date)
-        if entry:
-            s["location_status"] = entry["status"]
-            s["location_place"] = entry.get("place", "")
+    if target_date != datetime.date.today():
+        for s in soldiers_list:
+            entry = await _compute_location(s["id"], target_date)
+            if entry:
+                s["location_status"] = entry["status"]
+                s["location_place"] = entry.get("place", "")
 
     # Активні переміщення (submitted/approved) — по oldest на солдата
     active = {}

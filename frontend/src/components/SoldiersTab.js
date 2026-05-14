@@ -473,18 +473,26 @@ function SoldierDetail({ id, onClose, showToast }) {
                      </button>
                    )}>
             <Grid>
-              <Field2 label="Поточний стан (за календарем)">
-                <input className="input-mil" value={form.location_status || "ППД"} disabled
-                       data-testid="fld-loc-status" />
+              <Field2 label="Поточний стан">
+                <select className="input-mil" value={form.location_status || "ППД"} disabled={!editable}
+                        onChange={(e) => setForm({...form, location_status: e.target.value,
+                                                  location_updated_at: new Date().toISOString().slice(0,10)})}
+                        data-testid="fld-loc-status">
+                  {LOCATIONS.map(l => <option key={l} value={l}>{l}</option>)}
+                </select>
               </Field2>
-              <Field2 label="Поточне місце">
-                <input className="input-mil" value={form.location_place || ""} disabled
-                       placeholder="зі статусу календаря" />
+              <Field2 label="Поточне місце (н.п./адреса/координати)">
+                <input className="input-mil" value={form.location_place || ""} disabled={!editable}
+                       placeholder="напр. м.Покровськ / 50.123, 36.456"
+                       onChange={(e) => setForm({...form, location_place: e.target.value})} />
               </Field2>
             </Grid>
             {form.location_updated_at && (
               <div className="text-xs mt-2 mb-3" style={{ color: "#7A8B6C" }}>
                 Останнє оновлення: {form.location_updated_at?.slice(0, 19).replace("T", " ")}
+                <span className="ml-2 px-2 py-0.5 rounded" style={{ background: "#2F3D26", color: "#A4C26A", fontSize: "10px" }}>
+                  💾 Ручна зміна тут синхронізується з календарем на сьогодні
+                </span>
               </div>
             )}
             <LocationsEditor soldierId={id} showToast={showToast} />
