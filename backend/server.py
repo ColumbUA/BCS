@@ -393,7 +393,16 @@ async def register_user(payload: UserRegister, user=Depends(commander_only)):
 
 @api_router.put("/users/{uid}")
 async def admin_update_user(uid: str, payload: UserUpdate, user=Depends(commander_only)):
+    target = await db.users.find_one({"id": uid}, {"_id": 0})
+    if not target:
+        raise HTTPException(404, "Не знайдено")
     upd = {k: v for k, v in payload.model_dump().items() if v is not None and k != "new_password"}
+    # Захист admin: не можна понизити роль системного адміна
+    if target.get("username") == "admin" and "role" in upd and upd["role"] != "COMMANDER":
+        raise HTTPException(400, "Не можна змінити роль системного admin (зарезервовано COMMANDER)")
+    # Захист self: не можна понизити власну роль (щоб не залишитись без COMMANDER)
+    if target.get("id") == user.id and "role" in upd and upd["role"] != "COMMANDER":
+        raise HTTPException(400, "Не можна понизити роль власного акаунта")
     if payload.new_password:
         if len(payload.new_password) < 6:
             raise HTTPException(400, "Пароль ≥6 символів")

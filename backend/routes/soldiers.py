@@ -174,6 +174,165 @@ async def seed_soldiers_from_bchs(user=Depends(commander_only)):
     return {"inserted": inserted}
 
 
+# ============================ RISK HEAT-MAP ============================
+
+REQUIRED_DOC_TYPES_LOCAL = ("passport", "ipn", "military_id")
+TRAINING_WARN_DAYS = 365   # БЗВП/КТЗ протерміновано якщо > 1 рік
+TRANSFER_OVERDUE_DAYS = 14   # переміщення submitted/approved > 14 днів
+
+
+def _risk_for_soldier(s: dict, active_transfers: dict) -> dict:
+    """Обчислити рівень ризику для одного солдата.
+
+    Args:
+      s: документ солдата
+      active_transfers: {soldier_id: oldest_active_transfer_dict}
+
+    Returns:
+      {risk: 'red'|'yellow'|'green', reasons: [code, ...], labels: [{code, label, severity}]}
+    """
+    today = datetime.date.today()
+    reasons = []
+    labels = []
+
+    # 🔴 Червоні: відсутні критичні документи
+    docs = s.get("documents") or {}
+    missing_docs = [d for d in REQUIRED_DOC_TYPES_LOCAL if d not in docs]
+    if missing_docs:
+        reasons.append("docs_missing")
+        labels.append({"code": "docs_missing", "severity": "red",
+                       "label": f"Відсутні документи: {', '.join(missing_docs)}"})
+
+    # 🔴 Червоний: СЗЧ
+    if s.get("location_status") == "СЗЧ":
+        reasons.append("szch")
+        labels.append({"code": "szch", "severity": "red", "label": "Самовільне залишення частини"})
+
+    # 🔴 Червоний: активне переміщення прострочене >14 днів
+    t = active_transfers.get(s["id"])
+    if t:
+        try:
+            created = datetime.datetime.fromisoformat(t.get("created_at", "").replace("Z", "+00:00"))
+            age_days = (datetime.datetime.now(datetime.timezone.utc) - created).days
+            if age_days > TRANSFER_OVERDUE_DAYS:
+                reasons.append("transfer_overdue")
+                labels.append({"code": "transfer_overdue", "severity": "red",
+                               "label": f"Переміщення прострочено: {age_days} дн."})
+        except Exception:
+            pass
+
+    # 🟡 Жовтий: БЗВП не пройдено або прострочено
+    bzvp = s.get("bzvp_passed_at", "")
+    if not bzvp:
+        reasons.append("bzvp_missing")
+        labels.append({"code": "bzvp_missing", "severity": "yellow", "label": "БЗВП не пройдено"})
+    else:
+        try:
+            d = datetime.date.fromisoformat(bzvp)
+            if (today - d).days > TRAINING_WARN_DAYS:
+                reasons.append("bzvp_expired")
+                labels.append({"code": "bzvp_expired", "severity": "yellow",
+                               "label": f"БЗВП >12 міс ({(today - d).days // 30} міс)"})
+        except Exception:
+            pass
+
+    # 🟡 Жовтий: КТЗ не пройдено / прострочено
+    ktz = s.get("ktz_passed_at", "")
+    if not ktz:
+        reasons.append("ktz_missing")
+        labels.append({"code": "ktz_missing", "severity": "yellow", "label": "КТЗ не пройдено"})
+    else:
+        try:
+            d = datetime.date.fromisoformat(ktz)
+            if (today - d).days > TRAINING_WARN_DAYS:
+                reasons.append("ktz_expired")
+                labels.append({"code": "ktz_expired", "severity": "yellow",
+                               "label": f"КТЗ >12 міс ({(today - d).days // 30} міс)"})
+        except Exception:
+            pass
+
+    # 🟡 Жовтий: лікарня / ВЛК
+    if s.get("location_status") in ("Лікарня", "ВЛК"):
+        reasons.append("medical")
+        labels.append({"code": "medical", "severity": "yellow",
+                       "label": f"Поза ППД: {s.get('location_status')}"})
+
+    # Підсумок рівня ризику
+    if any(l["severity"] == "red" for l in labels):
+        risk = "red"
+    elif any(l["severity"] == "yellow" for l in labels):
+        risk = "yellow"
+    else:
+        risk = "green"
+
+    return {"risk": risk, "reasons": reasons, "labels": labels}
+
+
+@router.get("/risk-heatmap")
+async def get_risk_heatmap(user=Depends(get_current_user)):
+    """Heat-map ризиків особового складу.
+
+    Повертає:
+      {
+        totals: {red, yellow, green, total, ratio_red, ratio_yellow},
+        by_subunit: { node_path: {red, yellow, green, total} },
+        soldiers: [{id, fio, callsign, node_path, position, risk, labels}],
+        generated_at: ISO,
+      }
+    """
+    q = _scope_filter(user)
+    soldiers_list = await db.soldiers.find(q, {"_id": 0}).to_list(1000)
+    sid_set = {s["id"] for s in soldiers_list}
+
+    # Активні переміщення (submitted/approved) — по oldest на солдата
+    active = {}
+    if sid_set:
+        async for t in db.transfers.find(
+            {"soldier_id": {"$in": list(sid_set)}, "status": {"$in": ["submitted", "approved"]}},
+            {"_id": 0}
+        ).sort("created_at", 1):
+            if t["soldier_id"] not in active:
+                active[t["soldier_id"]] = t
+
+    by_subunit = {}
+    out = []
+    totals = {"red": 0, "yellow": 0, "green": 0, "total": 0}
+
+    for s in soldiers_list:
+        r = _risk_for_soldier(s, active)
+        totals[r["risk"]] += 1
+        totals["total"] += 1
+        np = s.get("node_path", "—")
+        if np not in by_subunit:
+            by_subunit[np] = {"red": 0, "yellow": 0, "green": 0, "total": 0}
+        by_subunit[np][r["risk"]] += 1
+        by_subunit[np]["total"] += 1
+        out.append({
+            "id": s["id"], "fio": s.get("fio", ""),
+            "callsign": s.get("callsign", ""),
+            "rank": s.get("rank", ""),
+            "position": s.get("position", ""),
+            "node_path": np,
+            "location_status": s.get("location_status", ""),
+            "risk": r["risk"],
+            "labels": r["labels"],
+        })
+
+    totals["ratio_red"] = (totals["red"] / totals["total"] * 100) if totals["total"] else 0
+    totals["ratio_yellow"] = (totals["yellow"] / totals["total"] * 100) if totals["total"] else 0
+    totals["ratio_green"] = (totals["green"] / totals["total"] * 100) if totals["total"] else 0
+
+    # Сортуємо солдатів: спочатку червоні, потім жовті
+    out.sort(key=lambda x: (0 if x["risk"] == "red" else 1 if x["risk"] == "yellow" else 2, x["node_path"], x["fio"]))
+
+    return {
+        "totals": totals,
+        "by_subunit": by_subunit,
+        "soldiers": out,
+        "generated_at": now_iso(),
+    }
+
+
 # ============================ BCHS EXPORT ============================
 
 @router.get("/export/bchs.csv")

@@ -15,11 +15,12 @@ import UsersTab from "./components/UsersTab";
 import BackupTab from "./components/BackupTab";
 import AuditTab from "./components/AuditTab";
 import StructureEditor from "./components/StructureEditor";
+import RiskHeatmap from "./components/RiskHeatmap";
 import { cls, Stat } from "./components/Common";
 
 function AppShell() {
   const { user, token, logout, ax } = useAuth();
-  const [tab, setTab] = useState("structure");
+  const [tab, setTab] = useState("overview");
   const [structure, setStructure] = useState(null);
   const [equipment, setEquipment] = useState([]);
   const [interactions, setInteractions] = useState([]);
@@ -122,6 +123,7 @@ function AppShell() {
         </div>
 
         <div className="max-w-[1400px] mx-auto px-6 flex gap-1 border-t border-mil overflow-x-auto">
+          <Tab id="overview" cur={tab} onSelect={setTab}>🔥 Огляд</Tab>
           <Tab id="structure" cur={tab} onSelect={setTab}>📦 Структура та засоби</Tab>
           <Tab id="ammo" cur={tab} onSelect={setTab}>🎯 Боєкомплект</Tab>
           <Tab id="warehouse" cur={tab} onSelect={setTab}>🏪 Склад</Tab>
@@ -156,6 +158,7 @@ function AppShell() {
       )}
 
       <main className="max-w-[1400px] mx-auto px-6 py-5">
+        {tab === "overview" && <RiskHeatmap showToast={showToast} />}
         {tab === "structure" && <StructureTab structure={structure} equipment={equipment} config={config} onChange={reload} showToast={showToast} />}
         {tab === "ammo" && <AmmoTab structure={structure} config={config} showToast={showToast} />}
         {tab === "warehouse" && <WarehouseTab config={config} showToast={showToast} />}
