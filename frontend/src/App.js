@@ -12,6 +12,7 @@ import NotificationsTab from "./components/NotificationsTab";
 import TemplatesTab from "./components/TemplatesTab";
 import WarehouseTab from "./components/WarehouseTab";
 import UsersTab from "./components/UsersTab";
+import BackupTab from "./components/BackupTab";
 import { cls, Stat } from "./components/Common";
 
 function AppShell() {
@@ -131,6 +132,9 @@ function AppShell() {
           {can.commander(user) && (
             <Tab id="users" cur={tab} onSelect={setTab}>🔐 Користувачі</Tab>
           )}
+          {can.commander(user) && (
+            <Tab id="backup" cur={tab} onSelect={setTab}>🛡 Бекап</Tab>
+          )}
           <Tab id="summary" cur={tab} onSelect={setTab}>📊 Зведення</Tab>
         </div>
       </header>
@@ -155,6 +159,9 @@ function AppShell() {
         )}
         {tab === "users" && can.commander(user) && (
           <UsersTab structure={structure} showToast={showToast} />
+        )}
+        {tab === "backup" && can.commander(user) && (
+          <BackupTab showToast={showToast} />
         )}
         {tab === "summary" && <SummaryTab equipment={equipment} interactions={interactions} structure={structure} showToast={showToast} />}
       </main>

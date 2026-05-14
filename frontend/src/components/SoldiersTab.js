@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useAuth, can } from "../AuthContext";
 import { cls } from "./Common";
+import FilePreviewModal from "./FilePreviewModal";
+import TransferModal from "./TransferModal";
 
 const DOC_LABELS = {
   passport: "Паспорт",
@@ -12,13 +14,29 @@ const DOC_LABELS = {
   other: "Інше",
 };
 const REQUIRED = ["passport", "ipn", "military_id"];
+const LOCATIONS = ["ППД", "РЗ", "РВ", "Відрядження", "Відпустка", "Лікарня", "СЗЧ", "ВЛК", "Інше"];
+
+function locColor(loc) {
+  return {
+    "ППД":        { bg: "rgba(164,194,106,.15)", c: "#A4C26A" },
+    "РЗ":         { bg: "rgba(122,184,216,.15)", c: "#7AB8D8" },
+    "РВ":         { bg: "rgba(212,160,106,.25)", c: "#D4A06A" },
+    "Відрядження":{ bg: "rgba(184,160,214,.15)", c: "#B8A0D6" },
+    "Відпустка":  { bg: "rgba(216,195,106,.15)", c: "#D8C36A" },
+    "Лікарня":    { bg: "rgba(122,184,216,.15)", c: "#7AB8D8" },
+    "СЗЧ":        { bg: "rgba(232,144,144,.2)",  c: "#E89090" },
+    "ВЛК":        { bg: "rgba(212,160,106,.15)", c: "#D4A06A" },
+    "Інше":       { bg: "rgba(122,139,108,.15)", c: "#7A8B6C" },
+  }[loc] || { bg: "rgba(122,139,108,.15)", c: "#7A8B6C" };
+}
 
 export default function SoldiersTab({ structure, showToast, forceOpenId, clearOpenId }) {
-  const { ax, user } = useAuth();
+  const { ax, token, user } = useAuth();
   const editable = can.edit(user);
   const [soldiers, setSoldiers] = useState([]);
   const [filter, setFilter] = useState("");
   const [unitFilter, setUnitFilter] = useState("");
+  const [locFilter, setLocFilter] = useState("");
   const [selected, setSelected] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -45,12 +63,28 @@ export default function SoldiersTab({ structure, showToast, forceOpenId, clearOp
   const subunits = structure ? structure.order.map(k => structure.subunits[k].name) : [];
   const filtered = soldiers.filter(s => {
     if (unitFilter && !s.node_path?.startsWith(unitFilter)) return false;
+    if (locFilter && (s.location_status || "ППД") !== locFilter) return false;
     if (filter) {
       const f = filter.toLowerCase();
       return s.fio.toLowerCase().includes(f) || (s.callsign || "").toLowerCase().includes(f) || (s.position || "").toLowerCase().includes(f);
     }
     return true;
   });
+
+  const downloadBchs = async (fmt) => {
+    try {
+      const url = `${process.env.REACT_APP_BACKEND_URL}/api/export/bchs.${fmt}`;
+      const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const blob = await r.blob();
+      const u = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = u; a.download = `БЧС.${fmt}`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(u), 1000);
+      showToast(`Завантажено: БЧС.${fmt}`);
+    } catch (e) { showToast(`Помилка: ${e.message}`, "err"); }
+  };
 
   const docCompleteness = (s) => {
     const docs = s.documents || {};
@@ -71,6 +105,12 @@ export default function SoldiersTab({ structure, showToast, forceOpenId, clearOp
           <option value="">Усі підрозділи</option>
           {subunits.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
+        <select className="input-mil" style={{ width: "auto" }} value={locFilter} onChange={(e) => setLocFilter(e.target.value)} data-testid="loc-filter">
+          <option value="">📍 Усі стани</option>
+          {LOCATIONS.map(l => <option key={l} value={l}>{l}</option>)}
+        </select>
+        <button className="btn-mil text-sm" onClick={() => downloadBchs("xlsx")} data-testid="dl-bchs-xlsx">⬇ БЧС .xlsx</button>
+        <button className="btn-mil text-sm" onClick={() => downloadBchs("csv")} data-testid="dl-bchs-csv">⬇ БЧС .csv</button>
         {editable && (
           <button className="btn-mil btn-mil-primary text-sm" onClick={() => setShowCreate(true)} data-testid="btn-add-soldier">
             + Додати картку
@@ -106,8 +146,15 @@ export default function SoldiersTab({ structure, showToast, forceOpenId, clearOp
                     <div className="text-xs mt-1" style={{ color: "#7A8B6C" }}>{s.position}</div>
                     <div className="text-xs truncate" style={{ color: "#5C6E54" }}>{s.node_path}</div>
                   </div>
-                  <div className={cls("badge", complete ? "badge-state-ok" : "badge-state-warn")} title="Документи">
-                    📄 {c.has}/{c.total}
+                  <div className="flex flex-col items-end gap-1">
+                    <div className={cls("badge", complete ? "badge-state-ok" : "badge-state-warn")} title="Документи">
+                      📄 {c.has}/{c.total}
+                    </div>
+                    <div className="badge" style={{ background: locColor(s.location_status).bg, color: locColor(s.location_status).c,
+                                                    border: `1px solid ${locColor(s.location_status).c}`, fontSize: "9px" }}
+                         title={s.location_place || s.location_status || "ППД"}>
+                      📍 {s.location_status || "ППД"}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -258,6 +305,8 @@ function SoldierDetail({ id, onClose, showToast }) {
   const [form, setForm] = useState(null);
   const [files, setFiles] = useState([]);
   const [uploading, setUploading] = useState("");
+  const [showTransfer, setShowTransfer] = useState(false);
+  const [previewFile, setPreviewFile] = useState(null);
 
   const load = async () => {
     const [r, f] = await Promise.all([ax().get(`/soldiers/${id}`), ax().get(`/soldiers/${id}/documents`)]);
@@ -372,6 +421,36 @@ function SoldierDetail({ id, onClose, showToast }) {
             </Grid>
           </Section>
 
+          {/* Місцезнаходження */}
+          <Section title="📍 Місцезнаходження"
+                   actions={editable && (
+                     <button type="button" className="btn-mil btn-mil-primary text-xs"
+                             onClick={() => setShowTransfer(true)} data-testid="btn-transfer">
+                       🔄 Перемістити
+                     </button>
+                   )}>
+            <Grid>
+              <Field2 label="Стан">
+                <select className="input-mil" value={form.location_status || "ППД"} disabled={!editable}
+                        onChange={(e) => setForm({...form, location_status: e.target.value,
+                                                  location_updated_at: new Date().toISOString().slice(0,10)})}
+                        data-testid="fld-loc-status">
+                  {LOCATIONS.map(l => <option key={l} value={l}>{l}</option>)}
+                </select>
+              </Field2>
+              <Field2 label="Місце (н.п./адреса/координати)">
+                <input className="input-mil" value={form.location_place || ""} disabled={!editable}
+                       placeholder="напр. м.Покровськ / 50.123, 36.456"
+                       onChange={(e) => setForm({...form, location_place: e.target.value})} />
+              </Field2>
+            </Grid>
+            {form.location_updated_at && (
+              <div className="text-xs mt-2" style={{ color: "#7A8B6C" }}>
+                Оновлено: {form.location_updated_at}
+              </div>
+            )}
+          </Section>
+
           {/* Освіта */}
           <Section title="🎓 Освіта" actions={editable && <button className="btn-mil text-xs" onClick={() => setForm({...form, education: [...(form.education||[]), {degree:"", institution:"", year:"", specialty:""}]})}>+ Додати</button>}>
             {(form.education || []).length === 0 && <div className="text-xs" style={{ color: "#7A8B6C" }}>Не вказано</div>}
@@ -425,6 +504,9 @@ function SoldierDetail({ id, onClose, showToast }) {
                     </div>
                     {meta ? (
                       <>
+                        <button className="btn-mil text-xs py-1 px-2"
+                                onClick={() => setPreviewFile({id: fileId, name: meta.filename, mime: meta.mime})}
+                                title="Перегляд" data-testid={`prev-${fileId}`}>👁</button>
                         <button className="btn-mil text-xs py-1 px-2" onClick={() => downloadDoc(fileId, meta.filename)}>⬇</button>
                         {editable && <button className="btn-mil btn-mil-danger text-xs py-1 px-2" onClick={() => removeDoc(fileId)}>✕</button>}
                       </>
@@ -441,6 +523,27 @@ function SoldierDetail({ id, onClose, showToast }) {
             </div>
           </Section>
 
+          {/* Згенеровані документи на військового */}
+          {(() => {
+            const generated = files.filter(f => f.source === "generated" || f.type === "generated");
+            if (generated.length === 0) return null;
+            return (
+              <Section title="📑 Документи на військового (згенеровані)">
+                <div className="text-xs mb-3" style={{ color: "#7A8B6C" }}>
+                  Шаблони з вкладки «📄 Документи» автоматично зберігаються тут. Діловод проставляє статус та дати.
+                </div>
+                <div className="space-y-2">
+                  {generated.map(g => (
+                    <GeneratedDocRow key={g.id} doc={g} editable={editable}
+                                     onPreview={() => setPreviewFile({id: g.id, name: g.filename, mime: g.mime})}
+                                     onChanged={load} onDownload={downloadDoc} onRemove={removeDoc}
+                                     showToast={showToast} />
+                  ))}
+                </div>
+              </Section>
+            );
+          })()}
+
           <Section title="📝 Примітки">
             <textarea className="input-mil" rows="3" value={form.notes} disabled={!editable}
                       onChange={(e) => setForm({...form, notes: e.target.value})} />
@@ -454,6 +557,84 @@ function SoldierDetail({ id, onClose, showToast }) {
           )}
         </div>
       </div>
+      {showTransfer && (
+        <TransferModal soldier={s} onClose={() => setShowTransfer(false)}
+                       onChanged={load} showToast={showToast} />
+      )}
+      {previewFile && (
+        <FilePreviewModal fileId={previewFile.id} filename={previewFile.name}
+                          mime={previewFile.mime} onClose={() => setPreviewFile(null)} />
+      )}
+    </div>
+  );
+}
+
+
+function GeneratedDocRow({ doc, editable, onPreview, onChanged, onDownload, onRemove, showToast }) {
+  const { ax } = useAuth();
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({
+    status: doc.status || "draft",
+    status_at: doc.status_at || "",
+    doc_notes: doc.doc_notes || "",
+  });
+
+  const STATUS_COLORS = {
+    draft: { bg: "rgba(122,139,108,.2)", c: "#7A8B6C" },
+    signed: { bg: "rgba(122,184,216,.2)", c: "#7AB8D8" },
+    executed: { bg: "rgba(164,194,106,.2)", c: "#A4C26A" },
+  };
+  const STATUS_LABELS = { draft: "Чернетка", signed: "Підписано", executed: "Виконано" };
+  const c = STATUS_COLORS[doc.status || "draft"];
+
+  const save = async () => {
+    try {
+      await ax().put(`/documents/${doc.id}/status`, form);
+      showToast("✓ Статус оновлено");
+      setEditing(false); onChanged && onChanged();
+    } catch (e) { showToast(e.response?.data?.detail || "Помилка", "err"); }
+  };
+
+  return (
+    <div className="bg-mil-deep border border-mil rounded p-3" data-testid={`gen-${doc.id}`}>
+      <div className="flex items-start gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-semibold text-sm">{doc.template_name || doc.filename}</span>
+            <span className="badge" style={{ background: c.bg, color: c.c, border: `1px solid ${c.c}`, fontSize: "10px" }}>
+              {STATUS_LABELS[doc.status || "draft"]}
+            </span>
+            {doc.status_at && <span className="text-xs" style={{ color: "#7A8B6C" }}>· {doc.status_at}</span>}
+          </div>
+          <div className="text-xs mt-1" style={{ color: "#5C6E54" }}>
+            {doc.filename} · {(doc.size/1024).toFixed(0)} KB · згенерував {doc.uploaded_by} ({doc.uploaded_at?.slice(0,10)})
+          </div>
+          {doc.doc_notes && <div className="text-xs mt-1" style={{ color: "#7A8B6C" }}>📝 {doc.doc_notes}</div>}
+        </div>
+        <div className="flex gap-1">
+          <button className="btn-mil text-xs py-1 px-2" onClick={onPreview} title="Перегляд">👁</button>
+          <button className="btn-mil text-xs py-1 px-2" onClick={() => onDownload(doc.id, doc.filename)}>⬇</button>
+          {editable && <button className="btn-mil text-xs py-1 px-2" onClick={() => setEditing(!editing)} title="Статус">⚙</button>}
+          {editable && <button className="btn-mil btn-mil-danger text-xs py-1 px-2" onClick={() => onRemove(doc.id)}>✕</button>}
+        </div>
+      </div>
+      {editing && (
+        <div className="mt-3 pt-3 border-t border-mil grid grid-cols-1 md:grid-cols-3 gap-2">
+          <select className="input-mil" value={form.status} onChange={(e) => setForm({...form, status: e.target.value})}>
+            <option value="draft">Чернетка</option>
+            <option value="signed">Підписано</option>
+            <option value="executed">Виконано</option>
+          </select>
+          <input type="date" className="input-mil" value={form.status_at}
+                 onChange={(e) => setForm({...form, status_at: e.target.value})} placeholder="Дата" />
+          <input className="input-mil" placeholder="Примітка (наказ №...)"
+                 value={form.doc_notes} onChange={(e) => setForm({...form, doc_notes: e.target.value})} />
+          <div className="md:col-span-3 flex gap-2 mt-1">
+            <button className="btn-mil btn-mil-primary text-xs" onClick={save}>Зберегти</button>
+            <button className="btn-mil text-xs" onClick={() => setEditing(false)}>Скасувати</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

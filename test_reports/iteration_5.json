@@ -1,0 +1,35 @@
+{
+  "summary": "Iteration 5 — фінальний прогін усього блоку розширень: location_status/location_place у картці, переміщення (transfers), експорт БЧС (csv з BOM + xlsx), статуси документів (draft/signed/executed), inline preview, авто-збереження згенерованих документів у картку, бекап БД+файлів з UI. 24/24 нових pytest проходять. Frontend перевірено для всіх 4 ролей (admin/material/kv1/viewer). Backup UI: створення бекапу (6.7 MB tar.gz через mongodump+storage) працює, список відображається з кнопками ⬇ та ✕, видно тільки COMMANDER (admin), у viewer/material/kv1 вкладка tab-backup прихована, як і слід.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "SoldiersTab toolbar", "issues": ["Native <select> для loc-filter і fld-loc-status замість shadcn Select (узгоджено з попередніми ітераціями — застосовується по всьому додатку, не блокер)."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration5.py",
+    "/app/test_reports/pytest/iter5_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py тепер 1432 рядки — давно час розкласти на routers (location/transfers/bchs/documents/backup кожен у власний модуль). Зростання тісно повʼязано з відсутністю розбиття у попередніх ітераціях.",
+    "TRANSFERS: POST /transfers не перевіряє, що from/to_node_path для in-rota належать структурі поточної роти. Можна створити transfer на довільну строку, що потім просто запишеться у soldier.node_path при execute. Додати валідацію проти structure.json (або довідника підрозділів).",
+    "TRANSFERS execute для in-rota: міняє node_path і position, але НЕ оновлює location_status (залишається старий). Очікувано було б location_status='ППД' автоматично при internal-переміщенні (хоч specs цього не вимагають явно). Зараз тільки in-bat/in-polk/in-brigade/in-zsu/discharge/deceased/missing встановлюють 'Інше'. Обговорити з користувачем.",
+    "PUT /documents/{file_id}/status приймає payload як dict (raw) замість Pydantic-моделі — нема валідації полів. Краще DocumentStatusUpdate(BaseModel) з полями status/status_at/doc_notes і whitelist.",
+    "BACKUP: make_backup() запускається синхронно у threadpool через run_in_executor — це блокує один worker до 60-120 сек. Краще винести у фоновий task (FastAPI BackgroundTasks) і одразу повернути 202, а UI poll'ить список. Зараз UI стоїть до 20+ сек з 'running' прапором.",
+    "BACKUP: mongodump fallback на _manual_json_dump тихо ковтає помилку — користувач не дізнається, що отримав не-нативний дамп. Додати у meta.json поле 'fallback': true і повертати у відповіді.",
+    "RENDER template + save_to_card=1 створює новий generated документ КОЖНОГО разу — швидко засмічує doc_files (1000 рендерів = 1000 файлів). Розглянути: або deduplicate за template_id+soldier_id+date, або auto-cleanup старих drafts.",
+    "CSV export — поле 'Місце' містить replace(';',',') але це не повна санітизація для CSV (нема quoting). Краще використати модуль csv.writer (як з xlsx).",
+    "XLSX/CSV експорт доступний усім ролям, включно з VIEWER — це за дизайном (read-only експорт), але якщо є чутливі дані по солдатах, можливо обмежити VIEWER (specs дозволяють поточну поведінку)."
+  ],
+  "updated_files": ["/app/backend/tests/test_iteration5.py (новий — 24 кейсі для location/transfers/bchs/documents/backup + RBAC)"],
+  "success_rate": {"backend": "100% (24/24)", "frontend": "100% (усі ключові UI флоу: toolbar BCHS, location dropdown 9 опцій, location filter 10 опцій, badge 📍 на картках, TransferModal + TransferForm з типом/куди/submit, btn-transfer, BackupTab з кнопкою 🚀 + рядки з ⬇✕, видимість tab-backup тільки для admin)"},
+  "test_credentials": "admin/rota2026 (COMMANDER) — OK, material/venom2026 — OK, kv1/platoon1 — OK, viewer/view2026 — OK",
+  "seed_data_creation": "Тест створив 1 тестового солдата 'TEST_ІТЕРАЦІЯ5 Тестовий Солдатович' з cleanup у тілі test_soldier фікстури (DELETE наприкінці). Залишилось 2 backup tar.gz файли в /app/backups (з тестового UI прогону + з pytest TestBackup, які чистяться після test_delete_backup). Можуть бути 1-2 артефакти від адмінського ручного бекапу — не критично.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Усі data-testid атрибути для iter5: loc-filter, dl-bchs-xlsx, dl-bchs-csv, sold-{id} (badge 📍 у тексті), fld-loc-status (9 опцій), btn-transfer, btn-new-transfer, tr-type, tr-to, tr-submit, tr-{id}, gen-{doc.id} (для згенерованих документів у картці), prev-{fileId} (preview-кнопка для документа), tab-backup, btn-backup-now, bk-dl-{name}, bk-rm-{name}. Backup створюється ~10-20 сек (mongodump + tar.gz), на тестовому енві файл ~6.7 MB. У pytest створюються-видаляються бекап-файли — fixture самочиститься. Render template auto-saves у doc_files з source='generated', status='draft' — потрібен soldier_id у query.",
+  "rca of the issue": "N/A — багів не виявлено. Лише code-review зауваження див. вище."
+}

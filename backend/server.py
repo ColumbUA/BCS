@@ -40,6 +40,7 @@ from xml_generators import (
     generate_interaction_matrix_xml,
 )
 from templates_lib import list_templates, render_template
+from backup_mod import make_backup, list_backups, delete_backup, BACKUP_DIR
 
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
@@ -90,6 +91,38 @@ DOCUMENT_TYPES = {
 }
 REQUIRED_DOC_TYPES = ["passport", "ipn", "military_id"]   # обов'язкові для всіх
 DRIVER_REQUIRED = ["passport", "ipn", "military_id", "driver_license"]
+
+LOCATION_STATUSES = [
+    "ППД",          # пункт постійної дислокації
+    "РЗ",           # район зосередження
+    "РВ",           # район виконання (бойове завдання)
+    "Відрядження",
+    "Відпустка",
+    "Лікарня",
+    "СЗЧ",          # самовільне залишення частини
+    "ВЛК",
+    "Інше",
+]
+TRANSFER_TYPES = {
+    "in-rota":     "Переміщення в межах роти",
+    "in-bat":      "Переміщення в межах батальйону",
+    "in-polk":     "Переміщення в межах полка",
+    "in-brigade":  "Переміщення в межах бригади",
+    "in-zsu":      "Переміщення між частинами ЗСУ",
+    "discharge":   "Звільнення з військової служби",
+    "deceased":    "Виключення зі списків (загибель)",
+    "missing":     "Виключення зі списків (зник безвісти)",
+}
+TRANSFER_STATUSES = ["draft", "submitted", "approved", "executed", "rejected"]
+TRANSFER_STATUS_LABELS = {
+    "draft":     "Чернетка",
+    "submitted": "Подано (на розгляді)",
+    "approved":  "Затверджено",
+    "executed":  "Виконано",
+    "rejected":  "Відхилено",
+}
+DOC_STATUSES = ["draft", "signed", "executed"]
+DOC_STATUS_LABELS = {"draft": "Чернетка", "signed": "Підписано", "executed": "Виконано"}
 
 
 # ============================ AUTH ROUTES ============================
@@ -538,6 +571,9 @@ class SoldierBase(BaseModel):
     certificates: List[Certificate] = []
     blood_group: str = ""
     has_driver_license: bool = False
+    location_status: str = "ППД"   # ППД / РЗ / РВ / СЗЧ / Відпустка / тощо
+    location_place: str = ""       # н.п., адреса, координати
+    location_updated_at: str = ""
     notes: str = ""
 
 
@@ -617,6 +653,159 @@ async def seed_soldiers_from_bchs(user=Depends(commander_only)):
     return {"inserted": inserted}
 
 
+# ============================ TRANSFERS (переміщення) ============================
+
+class TransferBase(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    soldier_id: str
+    transfer_type: str = "in-rota"
+    from_node_path: str = ""
+    to_node_path: str = ""
+    new_position: str = ""
+    reason: str = ""
+    effective_date: str = ""
+    order_number: str = ""
+    status: Literal["draft", "submitted", "approved", "executed", "rejected"] = "draft"
+    notes: str = ""
+
+
+class Transfer(TransferBase):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    soldier_fio: str = ""
+    document_ids: List[str] = []
+    created_at: str = Field(default_factory=lambda: datetime.datetime.now(datetime.timezone.utc).isoformat())
+    created_by: str = ""
+    executed_at: str = ""
+
+
+@api_router.get("/soldiers/{sid}/transfers", response_model=List[Transfer])
+async def list_soldier_transfers(sid: str, user=Depends(get_current_user)):
+    return await db.transfers.find({"soldier_id": sid}, {"_id": 0}).sort("created_at", -1).to_list(200)
+
+
+@api_router.get("/transfers", response_model=List[Transfer])
+async def list_all_transfers(user=Depends(get_current_user)):
+    return await db.transfers.find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
+
+
+@api_router.post("/transfers", response_model=Transfer)
+async def create_transfer(payload: TransferBase, user=Depends(can_edit)):
+    s = await db.soldiers.find_one({"id": payload.soldier_id}, {"_id": 0})
+    if not s:
+        raise HTTPException(404, "Картку не знайдено")
+    data = payload.model_dump()
+    if not data.get("from_node_path"):
+        data["from_node_path"] = s.get("node_path", "")
+    t = Transfer(**data,
+                 soldier_fio=s["fio"],
+                 created_by=user.username)
+    await db.transfers.insert_one(t.model_dump())
+    return t
+
+
+@api_router.put("/transfers/{tid}", response_model=Transfer)
+async def update_transfer(tid: str, payload: TransferBase, user=Depends(can_edit)):
+    res = await db.transfers.find_one_and_update(
+        {"id": tid}, {"$set": payload.model_dump()},
+        return_document=True, projection={"_id": 0})
+    if not res:
+        raise HTTPException(404, "Не знайдено")
+    return res
+
+
+@api_router.post("/transfers/{tid}/execute")
+async def execute_transfer(tid: str, user=Depends(can_edit)):
+    t = await db.transfers.find_one({"id": tid}, {"_id": 0})
+    if not t:
+        raise HTTPException(404, "Не знайдено")
+    if t["status"] == "executed":
+        raise HTTPException(400, "Вже виконано")
+    upd = {"updated_at": datetime.datetime.now(datetime.timezone.utc).isoformat()}
+    if t["transfer_type"] == "in-rota" and t.get("to_node_path"):
+        upd["node_path"] = t["to_node_path"]
+        if t.get("new_position"):
+            upd["position"] = t["new_position"]
+    elif t["transfer_type"] in ("in-bat", "in-polk", "in-brigade", "in-zsu", "discharge", "deceased", "missing"):
+        s = await db.soldiers.find_one({"id": t["soldier_id"]}, {"_id": 0, "notes": 1})
+        cur_notes = (s or {}).get("notes", "") or ""
+        new_note = f"[{t.get('effective_date') or 'без дати'}] {TRANSFER_TYPES.get(t['transfer_type'], t['transfer_type'])}: {t.get('to_node_path','')}"
+        upd["notes"] = (cur_notes + "\n" + new_note).strip()
+        upd["location_status"] = "Інше"
+        upd["location_place"] = t.get("to_node_path", "")
+    await db.soldiers.update_one({"id": t["soldier_id"]}, {"$set": upd})
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    await db.transfers.update_one({"id": tid}, {"$set": {"status": "executed", "executed_at": now}})
+    return {"executed": tid}
+
+
+@api_router.delete("/transfers/{tid}")
+async def delete_transfer(tid: str, user=Depends(commander_only)):
+    res = await db.transfers.delete_one({"id": tid})
+    if res.deleted_count == 0:
+        raise HTTPException(404, "Не знайдено")
+    return {"deleted": tid}
+
+
+# ============================ BCHS EXPORT (CSV / XLSX) ============================
+
+@api_router.get("/export/bchs.csv")
+async def export_soldiers_csv(user=Depends(get_current_user)):
+    soldiers = await db.soldiers.find({}, {"_id": 0}).to_list(500)
+    rows = ["ПІБ;Позивний;Звання;Посада;Підрозділ;Дата народж.;Дата моб.;БЗВП;КТЗ;Гр.крові;ВП;Стан;Місце;Документів;Примітки"]
+    for s in soldiers:
+        docs = s.get("documents") or {}
+        rows.append(";".join([
+            (s.get(k, "") or "").replace(";", ",").replace("\n", " ")
+            for k in ("fio", "callsign", "rank", "position", "node_path",
+                     "birth_date", "mobilized_at", "bzvp_passed_at", "ktz_passed_at",
+                     "blood_group")
+        ] + [
+            "так" if s.get("has_driver_license") else "ні",
+            s.get("location_status", "") or "",
+            (s.get("location_place", "") or "").replace(";", ",").replace("\n", " "),
+            str(len(docs)),
+            (s.get("notes", "") or "").replace(";", ",").replace("\n", " "),
+        ]))
+    csv_text = "\n".join(rows)
+    fn = f"БЧС - {COMPANY['name']} - {datetime.date.today().strftime('%Y-%m-%d')}.csv"
+    headers = {"Content-Disposition": f"attachment; filename=\"bchs.csv\"; filename*=UTF-8''{_quote(fn)}"}
+    return FastAPIResponse(content="\ufeff" + csv_text, media_type="text/csv; charset=utf-8", headers=headers)
+
+
+@api_router.get("/export/bchs.xlsx")
+async def export_soldiers_xlsx(user=Depends(get_current_user)):
+    import openpyxl
+    soldiers = await db.soldiers.find({}, {"_id": 0}).to_list(500)
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "БЧС"
+    ws.append(["№", "ПІБ", "Позивний", "Звання", "Посада", "Підрозділ",
+               "Дата народж.", "Дата моб.", "БЗВП", "КТЗ", "Гр.крові", "ВП",
+               "Стан", "Місце", "Документів", "Примітки"])
+    for i, s in enumerate(soldiers, 1):
+        docs = s.get("documents") or {}
+        ws.append([
+            i, s.get("fio", ""), s.get("callsign", ""), s.get("rank", ""),
+            s.get("position", ""), s.get("node_path", ""),
+            s.get("birth_date", ""), s.get("mobilized_at", ""),
+            s.get("bzvp_passed_at", ""), s.get("ktz_passed_at", ""),
+            s.get("blood_group", ""),
+            "так" if s.get("has_driver_license") else "ні",
+            s.get("location_status", ""), s.get("location_place", ""),
+            len(docs), s.get("notes", "")
+        ])
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    fn = f"БЧС - {COMPANY['name']} - {datetime.date.today().strftime('%Y-%m-%d')}.xlsx"
+    headers = {"Content-Disposition": f"attachment; filename=\"bchs.xlsx\"; filename*=UTF-8''{_quote(fn)}"}
+    return StreamingResponse(buf,
+                             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                             headers=headers)
+
+
+
+
 # ============================ DOCUMENTS UPLOAD ============================
 
 async def _delete_file(file_id: str):
@@ -661,6 +850,10 @@ async def upload_document(
         "mime": file.content_type or mimetypes.guess_type(file.filename or "")[0] or "application/octet-stream",
         "uploaded_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "uploaded_by": user.username,
+        "source": "uploaded",
+        "status": "executed",
+        "status_at": "",
+        "doc_notes": "",
     }
     await db.doc_files.insert_one(meta)
     docs[doc_type] = file_id
@@ -671,7 +864,7 @@ async def upload_document(
 
 
 @api_router.get("/documents/{file_id}")
-async def download_document(file_id: str, user=Depends(get_current_user)):
+async def download_document(file_id: str, inline: int = 0, user=Depends(get_current_user)):
     meta = await db.doc_files.find_one({"id": file_id}, {"_id": 0})
     if not meta:
         raise HTTPException(404, "Файл не знайдено")
@@ -679,9 +872,28 @@ async def download_document(file_id: str, user=Depends(get_current_user)):
     if not p.exists():
         raise HTTPException(404, "Файл втрачено")
     fn = meta["filename"]
-    headers = {"Content-Disposition": f"attachment; filename=\"file\"; filename*=UTF-8''{_quote(fn)}"}
+    disp = "inline" if inline else "attachment"
+    headers = {"Content-Disposition": f"{disp}; filename=\"file\"; filename*=UTF-8''{_quote(fn)}"}
     return FileResponse(p, media_type=meta.get("mime", "application/octet-stream"),
                         filename=fn, headers=headers)
+
+
+@api_router.put("/documents/{file_id}/status")
+async def update_document_status(file_id: str, payload: dict, user=Depends(can_edit)):
+    """Зміна статусу документа: draft | signed | executed (+ дата + примітка)."""
+    new_status = payload.get("status")
+    if new_status not in DOC_STATUSES:
+        raise HTTPException(400, f"Невірний статус. Допустимі: {DOC_STATUSES}")
+    upd = {"status": new_status}
+    if payload.get("status_at") is not None:
+        upd["status_at"] = payload["status_at"]
+    if payload.get("doc_notes") is not None:
+        upd["doc_notes"] = payload["doc_notes"]
+    res = await db.doc_files.find_one_and_update(
+        {"id": file_id}, {"$set": upd}, return_document=True, projection={"_id": 0})
+    if not res:
+        raise HTTPException(404, "Файл не знайдено")
+    return res
 
 
 @api_router.delete("/documents/{file_id}")
@@ -889,6 +1101,7 @@ async def get_templates(user=Depends(get_current_user)):
 
 @api_router.get("/templates/{tid}/render")
 async def render_template_endpoint(tid: str, soldier_id: Optional[str] = None,
+                                   save_to_card: int = 1,
                                    user=Depends(get_current_user)):
     soldier = None
     if soldier_id:
@@ -899,10 +1112,34 @@ async def render_template_endpoint(tid: str, soldier_id: Optional[str] = None,
     buf, fname = render_template(tid, soldier=soldier, settings=settings)
     if not buf:
         raise HTTPException(404, "Шаблон не знайдено")
+    content = buf.getvalue()
+    # Якщо обрано солдата і save_to_card=1 — зберігаємо у картку як "generated" документ
+    if soldier_id and soldier and save_to_card:
+        file_id = str(uuid.uuid4())
+        storage_path = DOCS_DIR / file_id
+        with open(storage_path, "wb") as f:
+            f.write(content)
+        meta = {
+            "id": file_id,
+            "soldier_id": soldier_id,
+            "type": "generated",
+            "filename": fname,
+            "size": len(content),
+            "mime": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "uploaded_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "uploaded_by": user.username,
+            "source": "generated",
+            "template_id": tid,
+            "template_name": fname.replace(".docx", ""),
+            "status": "draft",      # тільки що згенеровано
+            "status_at": "",
+            "doc_notes": "",
+        }
+        await db.doc_files.insert_one(meta)
     headers = {"Content-Disposition": f"attachment; filename=\"document.docx\"; filename*=UTF-8''{_quote(fname)}"}
-    return StreamingResponse(buf,
-                             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                             headers=headers)
+    return FastAPIResponse(content=content,
+                           media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                           headers=headers)
 
 
 # ============================ WAREHOUSE (Склад) ============================
@@ -1038,6 +1275,40 @@ async def warehouse_summary(user=Depends(get_current_user)):
             "txns_total": len(txns)}
 
 
+# ============================ BACKUP (admin) ============================
+
+@api_router.get("/admin/backup/list")
+async def admin_backup_list(user=Depends(commander_only)):
+    return {"backups": list_backups(), "backup_dir": str(BACKUP_DIR)}
+
+
+@api_router.post("/admin/backup/run")
+async def admin_backup_run(user=Depends(commander_only)):
+    import asyncio
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(None, make_backup)
+    return result
+
+
+@api_router.get("/admin/backup/download/{name}")
+async def admin_backup_download(name: str, user=Depends(commander_only)):
+    if "/" in name or ".." in name:
+        raise HTTPException(400, "Невірне ім'я")
+    p = BACKUP_DIR / name
+    if not p.exists():
+        raise HTTPException(404, "Бекап не знайдено")
+    headers = {"Content-Disposition": f'attachment; filename="{name}"'}
+    return FileResponse(p, media_type="application/gzip", filename=name, headers=headers)
+
+
+@api_router.delete("/admin/backup/{name}")
+async def admin_backup_delete(name: str, user=Depends(commander_only)):
+    ok = delete_backup(name)
+    if not ok:
+        raise HTTPException(404, "Бекап не знайдено")
+    return {"deleted": name}
+
+
 # ============================ EXPORT ============================
 
 @api_router.get("/export/orgstructure.xml")
@@ -1125,8 +1396,21 @@ async def startup():
         await db.soldiers.create_index("fio", unique=False)
         await db.doc_files.create_index("soldier_id")
         await db.ammo.create_index("node_path")
+        await db.transfers.create_index("soldier_id")
     except Exception:
         pass
+    # Auto-backup щодня о 02:00 UTC
+    try:
+        from apscheduler.schedulers.asyncio import AsyncIOScheduler
+        from apscheduler.triggers.cron import CronTrigger
+        sched = AsyncIOScheduler()
+        sched.add_job(make_backup, CronTrigger(hour=2, minute=0), id="daily_backup",
+                      replace_existing=True, misfire_grace_time=3600)
+        sched.start()
+        app.state.scheduler = sched
+        logging.info("Backup scheduler started: daily at 02:00 UTC")
+    except Exception as e:
+        logging.warning(f"Could not start backup scheduler: {e}")
 
 
 @app.on_event("shutdown")
