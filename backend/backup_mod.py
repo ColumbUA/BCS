@@ -23,6 +23,8 @@ def make_backup() -> dict:
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H%M%S")
     name = f"backup-{stamp}.tar.gz"
     out_path = BACKUP_DIR / name
+    fallback = False
+    fallback_error = ""
 
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
@@ -36,8 +38,10 @@ def make_backup() -> dict:
                  "--out", str(dump_dir), "--quiet"],
                 check=True, capture_output=True, timeout=120
             )
-        except (subprocess.CalledProcessError, FileNotFoundError) as e:
+        except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired) as e:
             # Fallback: ручний JSON dump через pymongo
+            fallback = True
+            fallback_error = str(e)
             _manual_json_dump(dump_dir / DB_NAME)
 
         # 2) Збираємо tar.gz
@@ -53,6 +57,8 @@ def make_backup() -> dict:
                 "created_at": datetime.now(timezone.utc).isoformat(),
                 "db_name": DB_NAME,
                 "docs_dir": str(STORAGE_DIR),
+                "fallback": fallback,
+                "fallback_error": fallback_error if fallback else "",
             }
             meta_path = tmp_path / "meta.json"
             meta_path.write_text(json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -74,6 +80,8 @@ def make_backup() -> dict:
         "size": out_path.stat().st_size,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "removed_old": removed,
+        "fallback": fallback,
+        "fallback_error": fallback_error if fallback else "",
     }
 
 

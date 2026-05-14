@@ -1,0 +1,31 @@
+{
+  "summary": "Iteration 6 — перевірено всі 8 пунктів code-review fixes з iteration_5.json. 19/19 pytest проходять. Frontend BackupTab перевірено: data-testid='backup-job-progress' (queued стан), data-testid='backup-job-result' (✓ ім'я.tar.gz + 6.7 MB), кнопка змінюється на '⏳ Створення… (у фоні)' без згадки '30-60 сек'. Бекапи з'являються в таблиці, видалення працює. Усі тести з первинного запиту пройшли.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration6.py",
+    "/app/test_reports/pytest/iter6_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "_run_backup_job у server.py використовує asyncio.get_event_loop().run_in_executor(None, make_backup) — на Python 3.11 краще asyncio.get_running_loop(); поточний код працює, але потенційно deprecation у Python 3.12+.",
+    "POST /admin/backup/run при наявній 'queued'/'running' задачі повертає 202 але без message-поля у початковій відповіді (message приходить тільки коли реально перекритий). Документація: завжди повертати 'message' при повторному запуску — стабільніше для UI.",
+    "_company_node_paths() викликається на кожному POST /transfers і execute — O(N) перебір по structure. Кешувати у settings cache (TTL ~60s) при великому навантаженні.",
+    "Dedupe-логіка у render_template_endpoint: regex '^{today}' на uploaded_at — працює, але якщо створено index на (soldier_id, template_id, source), то можна додати compound unique partial index для безпеки від races.",
+    "DocumentStatusUpdate приймає Literal['draft','signed','executed'], але DOC_STATUS_LABELS визначено у server.py окремо — варто синхронізувати через Enum, щоб не дублювати.",
+    "server.py = 1591 рядки (зросло на 159 з iter5). Рекомендація з iter5 щодо розбиття на routers досі актуальна.",
+    "CSV export QUOTE_MINIMAL — коректно, але lineterminator='\\n' (LF) на Windows може погано відкритись в Excel. Розглянути '\\r\\n' для CSV (для xlsx не актуально)."
+  ],
+  "updated_files": ["/app/backend/tests/test_iteration6.py (новий — 19 кейсів для async backup + transfer validation + auto ППД + dedupe + Pydantic status + CSV quoting + RBAC)"],
+  "success_rate": {"backend": "100% (19/19)", "frontend": "100% (backup UI повний флоу: progress→result→list→cleanup)"},
+  "test_credentials": "admin/rota2026 OK, material/venom2026 OK (403), kv1/platoon1 OK (403), viewer/view2026 OK (403)",
+  "seed_data_creation": "Тести створюють тимчасові transfer-и, бекап-файли і generated документи — усі видаляються у тілі тестів (try/finally + cleanup). PUT /soldiers/{sid} відновлює оригінальні дані (АМЕЛЬКІН залишається у 'Управління роти'/'Командир роти'/'КОЛУМБ'). Перевірено: жодних залишкових артефактів.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "data-testid атрибути нові: backup-job-progress (з'являється під час queued/running), backup-job-result (з'являється після done — з ім'ям бекапа + розміром, ⚠ fallback якщо JSON dump). POST /admin/backup/run повертає 202 з {job_id, status:'queued'} (НЕ блокуючий). Polling: GET /admin/backup/job/{id} → status переходить queued→running→done (5-15 сек на mongodump+tar.gz). На цьому енві fallback=False (mongodump доступний). Транзит-валідація: _company_node_paths() повертає список валідних шляхів роти ('Управління роти', 'Група обробки інформації', '1 Взвод радіорозвідки', '1 Взвод радіорозвідки/1 Відділення радіорозвідки' тощо). PUT /soldiers/{sid} вимагає повний SoldierBase — щоб не затерти інші поля, треба слати merged об'єкт.",
+  "rca of the issue": "N/A — всі 8 пунктів code-review реалізовані коректно і працюють як заплановано."
+}

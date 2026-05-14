@@ -6,6 +6,8 @@ export default function BackupTab({ showToast }) {
   const { ax, token } = useAuth();
   const [backups, setBackups] = useState([]);
   const [running, setRunning] = useState(false);
+  const [jobStatus, setJobStatus] = useState("");   // queued | running | done | error
+  const [jobMsg, setJobMsg] = useState("");
   const [downloading, setDownloading] = useState("");
 
   const reload = async () => {
@@ -14,14 +16,54 @@ export default function BackupTab({ showToast }) {
   };
   useEffect(() => { reload(); }, []);
 
+  // Polling job статусу
+  const pollJob = async (jobId) => {
+    let tries = 0;
+    while (tries < 120) {   // макс 2 хв (120 × 1с)
+      await new Promise(r => setTimeout(r, 1000));
+      try {
+        const r = await ax().get(`/admin/backup/job/${jobId}`);
+        const j = r.data;
+        setJobStatus(j.status);
+        if (j.status === "done") {
+          const sz = j.result?.size ? `${(j.result.size/1024/1024).toFixed(1)} MB` : "";
+          const fb = j.fallback ? " ⚠ fallback (JSON dump)" : "";
+          setJobMsg(`✓ ${j.result?.name || "OK"} ${sz}${fb}`);
+          showToast(`✓ Бекап створено: ${j.result?.name} ${sz}${fb}`);
+          await reload();
+          return;
+        }
+        if (j.status === "error") {
+          setJobMsg(`✕ ${j.error || "Помилка"}`);
+          showToast(`✕ Бекап не виконано: ${j.error}`, "err");
+          return;
+        }
+      } catch (e) {
+        // продовжуємо poll
+      }
+      tries++;
+    }
+    setJobMsg("⏱ Таймаут polling (>2 хв) — перевірте журнал бекапів");
+  };
+
   const runNow = async () => {
     setRunning(true);
+    setJobStatus("queued");
+    setJobMsg("Поставлено в чергу…");
     try {
       const r = await ax().post("/admin/backup/run");
-      showToast(`✓ Бекап створено: ${r.data.name} (${(r.data.size/1024/1024).toFixed(1)} MB)`);
-      reload();
-    } catch (e) { showToast(e.response?.data?.detail || "Помилка", "err"); }
-    finally { setRunning(false); }
+      const jobId = r.data.job_id;
+      if (r.data.message) {
+        setJobMsg(r.data.message);
+        showToast(r.data.message);
+      }
+      await pollJob(jobId);
+    } catch (e) {
+      showToast(e.response?.data?.detail || "Помилка", "err");
+      setJobMsg("✕ Не вдалось запустити");
+    } finally {
+      setRunning(false);
+    }
   };
 
   const download = async (name) => {
@@ -66,9 +108,26 @@ export default function BackupTab({ showToast }) {
             </div>
           </div>
           <button className="btn-mil btn-mil-primary" onClick={runNow} disabled={running} data-testid="btn-backup-now">
-            {running ? "⏳ Створення… (може зайняти 30-60 сек)" : "🚀 Зробити бекап зараз"}
+            {running ? "⏳ Створення… (у фоні)" : "🚀 Зробити бекап зараз"}
           </button>
         </div>
+        {running && (
+          <div className="mt-3 text-xs flex items-center gap-2"
+               style={{ color: "#7AB8D8" }}
+               data-testid="backup-job-progress">
+            <span className="inline-block w-2 h-2 rounded-full" style={{
+              background: jobStatus === "running" ? "#A4C26A" : "#7AB8D8",
+              animation: "pulse 1.2s infinite"
+            }} />
+            <span>Статус задачі: <b>{jobStatus || "…"}</b> {jobMsg && `— ${jobMsg}`}</span>
+          </div>
+        )}
+        {!running && jobMsg && (
+          <div className="mt-3 text-xs" style={{ color: jobStatus === "error" ? "#D67676" : "#A4C26A" }}
+               data-testid="backup-job-result">
+            {jobMsg}
+          </div>
+        )}
       </div>
 
       {backups.length === 0 ? (

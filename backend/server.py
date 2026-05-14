@@ -125,6 +125,25 @@ DOC_STATUSES = ["draft", "signed", "executed"]
 DOC_STATUS_LABELS = {"draft": "Чернетка", "signed": "Підписано", "executed": "Виконано"}
 
 
+def _company_node_paths() -> set[str]:
+    """Список усіх валідних node_path (взвод та взвод/відділення) у поточній структурі."""
+    paths: set[str] = set()
+    for su_key in COMPANY.get("order", []):
+        su = COMPANY["subunits"].get(su_key, {})
+        su_name = su.get("name", "")
+        if not su_name:
+            continue
+        paths.add(su_name)
+        sqs = su.get("squads", {})
+        if isinstance(sqs, dict):
+            for sq_data in sqs.values():
+                if isinstance(sq_data, dict):
+                    sq_name = sq_data.get("name", "")
+                    if sq_name:
+                        paths.add(f"{su_name}/{sq_name}")
+    return paths
+
+
 # ============================ AUTH ROUTES ============================
 
 @api_router.post("/auth/login", response_model=TokenResponse)
@@ -693,6 +712,24 @@ async def create_transfer(payload: TransferBase, user=Depends(can_edit)):
     s = await db.soldiers.find_one({"id": payload.soldier_id}, {"_id": 0})
     if not s:
         raise HTTPException(404, "Картку не знайдено")
+    # Валідація транзит-типу
+    if payload.transfer_type not in TRANSFER_TYPES:
+        raise HTTPException(400, f"Невідомий тип переміщення. Допустимі: {list(TRANSFER_TYPES.keys())}")
+    # Для in-rota: to_node_path і from_node_path мають належати структурі роти
+    if payload.transfer_type == "in-rota":
+        valid_paths = _company_node_paths()
+        if payload.to_node_path and payload.to_node_path not in valid_paths:
+            raise HTTPException(
+                400,
+                f"Невірний підрозділ призначення '{payload.to_node_path}'. "
+                f"Допустимі: {sorted(valid_paths)}"
+            )
+        if payload.from_node_path and payload.from_node_path not in valid_paths:
+            raise HTTPException(
+                400,
+                f"Невірний підрозділ відправлення '{payload.from_node_path}'. "
+                f"Допустимі: {sorted(valid_paths)}"
+            )
     data = payload.model_dump()
     if not data.get("from_node_path"):
         data["from_node_path"] = s.get("node_path", "")
@@ -722,9 +759,20 @@ async def execute_transfer(tid: str, user=Depends(can_edit)):
         raise HTTPException(400, "Вже виконано")
     upd = {"updated_at": datetime.datetime.now(datetime.timezone.utc).isoformat()}
     if t["transfer_type"] == "in-rota" and t.get("to_node_path"):
+        # Повторна валідація на момент виконання (структура могла змінитись)
+        valid_paths = _company_node_paths()
+        if t["to_node_path"] not in valid_paths:
+            raise HTTPException(
+                400,
+                f"Підрозділ призначення '{t['to_node_path']}' не існує у поточній структурі роти"
+            )
         upd["node_path"] = t["to_node_path"]
         if t.get("new_position"):
             upd["position"] = t["new_position"]
+        # При внутрішньому переміщенні автоматично повертаємо до ППД
+        upd["location_status"] = "ППД"
+        upd["location_place"] = ""
+        upd["location_updated_at"] = upd["updated_at"]
     elif t["transfer_type"] in ("in-bat", "in-polk", "in-brigade", "in-zsu", "discharge", "deceased", "missing"):
         s = await db.soldiers.find_one({"id": t["soldier_id"]}, {"_id": 0, "notes": 1})
         cur_notes = (s or {}).get("notes", "") or ""
@@ -732,6 +780,7 @@ async def execute_transfer(tid: str, user=Depends(can_edit)):
         upd["notes"] = (cur_notes + "\n" + new_note).strip()
         upd["location_status"] = "Інше"
         upd["location_place"] = t.get("to_node_path", "")
+        upd["location_updated_at"] = upd["updated_at"]
     await db.soldiers.update_one({"id": t["soldier_id"]}, {"$set": upd})
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
     await db.transfers.update_one({"id": tid}, {"$set": {"status": "executed", "executed_at": now}})
@@ -750,23 +799,27 @@ async def delete_transfer(tid: str, user=Depends(commander_only)):
 
 @api_router.get("/export/bchs.csv")
 async def export_soldiers_csv(user=Depends(get_current_user)):
+    import csv as _csv
     soldiers = await db.soldiers.find({}, {"_id": 0}).to_list(500)
-    rows = ["ПІБ;Позивний;Звання;Посада;Підрозділ;Дата народж.;Дата моб.;БЗВП;КТЗ;Гр.крові;ВП;Стан;Місце;Документів;Примітки"]
+    buf = io.StringIO()
+    writer = _csv.writer(buf, delimiter=";", quoting=_csv.QUOTE_MINIMAL,
+                         lineterminator="\n")
+    writer.writerow(["ПІБ", "Позивний", "Звання", "Посада", "Підрозділ",
+                     "Дата народж.", "Дата моб.", "БЗВП", "КТЗ", "Гр.крові",
+                     "ВП", "Стан", "Місце", "Документів", "Примітки"])
     for s in soldiers:
         docs = s.get("documents") or {}
-        rows.append(";".join([
-            (s.get(k, "") or "").replace(";", ",").replace("\n", " ")
-            for k in ("fio", "callsign", "rank", "position", "node_path",
-                     "birth_date", "mobilized_at", "bzvp_passed_at", "ktz_passed_at",
-                     "blood_group")
-        ] + [
+        writer.writerow([
+            s.get("fio", ""), s.get("callsign", ""), s.get("rank", ""),
+            s.get("position", ""), s.get("node_path", ""),
+            s.get("birth_date", ""), s.get("mobilized_at", ""),
+            s.get("bzvp_passed_at", ""), s.get("ktz_passed_at", ""),
+            s.get("blood_group", ""),
             "так" if s.get("has_driver_license") else "ні",
-            s.get("location_status", "") or "",
-            (s.get("location_place", "") or "").replace(";", ",").replace("\n", " "),
-            str(len(docs)),
-            (s.get("notes", "") or "").replace(";", ",").replace("\n", " "),
-        ]))
-    csv_text = "\n".join(rows)
+            s.get("location_status", ""), s.get("location_place", ""),
+            str(len(docs)), s.get("notes", ""),
+        ])
+    csv_text = buf.getvalue()
     fn = f"БЧС - {COMPANY['name']} - {datetime.date.today().strftime('%Y-%m-%d')}.csv"
     headers = {"Content-Disposition": f"attachment; filename=\"bchs.csv\"; filename*=UTF-8''{_quote(fn)}"}
     return FastAPIResponse(content="\ufeff" + csv_text, media_type="text/csv; charset=utf-8", headers=headers)
@@ -807,6 +860,14 @@ async def export_soldiers_xlsx(user=Depends(get_current_user)):
 
 
 # ============================ DOCUMENTS UPLOAD ============================
+
+class DocumentStatusUpdate(BaseModel):
+    """Payload для оновлення статусу документа. Whitelist полів."""
+    model_config = ConfigDict(extra="forbid")
+    status: Literal["draft", "signed", "executed"]
+    status_at: Optional[str] = None
+    doc_notes: Optional[str] = None
+
 
 async def _delete_file(file_id: str):
     p = DOCS_DIR / file_id
@@ -879,16 +940,13 @@ async def download_document(file_id: str, inline: int = 0, user=Depends(get_curr
 
 
 @api_router.put("/documents/{file_id}/status")
-async def update_document_status(file_id: str, payload: dict, user=Depends(can_edit)):
+async def update_document_status(file_id: str, payload: DocumentStatusUpdate, user=Depends(can_edit)):
     """Зміна статусу документа: draft | signed | executed (+ дата + примітка)."""
-    new_status = payload.get("status")
-    if new_status not in DOC_STATUSES:
-        raise HTTPException(400, f"Невірний статус. Допустимі: {DOC_STATUSES}")
-    upd = {"status": new_status}
-    if payload.get("status_at") is not None:
-        upd["status_at"] = payload["status_at"]
-    if payload.get("doc_notes") is not None:
-        upd["doc_notes"] = payload["doc_notes"]
+    upd = {"status": payload.status}
+    if payload.status_at is not None:
+        upd["status_at"] = payload.status_at
+    if payload.doc_notes is not None:
+        upd["doc_notes"] = payload.doc_notes
     res = await db.doc_files.find_one_and_update(
         {"id": file_id}, {"$set": upd}, return_document=True, projection={"_id": 0})
     if not res:
@@ -1115,27 +1173,53 @@ async def render_template_endpoint(tid: str, soldier_id: Optional[str] = None,
     content = buf.getvalue()
     # Якщо обрано солдата і save_to_card=1 — зберігаємо у картку як "generated" документ
     if soldier_id and soldier and save_to_card:
-        file_id = str(uuid.uuid4())
-        storage_path = DOCS_DIR / file_id
-        with open(storage_path, "wb") as f:
-            f.write(content)
-        meta = {
-            "id": file_id,
-            "soldier_id": soldier_id,
-            "type": "generated",
-            "filename": fname,
-            "size": len(content),
-            "mime": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            "uploaded_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            "uploaded_by": user.username,
-            "source": "generated",
-            "template_id": tid,
-            "template_name": fname.replace(".docx", ""),
-            "status": "draft",      # тільки що згенеровано
-            "status_at": "",
-            "doc_notes": "",
-        }
-        await db.doc_files.insert_one(meta)
+        today = datetime.date.today().isoformat()
+        # Dedupe: якщо для (soldier_id, template_id, date=сьогодні) уже є draft —
+        # перезаписуємо його файл замість створення нового
+        existing = await db.doc_files.find_one(
+            {"soldier_id": soldier_id, "template_id": tid,
+             "source": "generated", "status": "draft",
+             "uploaded_at": {"$regex": f"^{today}"}},
+            {"_id": 0}
+        )
+        now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        if existing:
+            # Перезаписуємо файл і оновлюємо мета
+            file_id = existing["id"]
+            storage_path = DOCS_DIR / file_id
+            with open(storage_path, "wb") as f:
+                f.write(content)
+            await db.doc_files.update_one(
+                {"id": file_id},
+                {"$set": {
+                    "filename": fname,
+                    "size": len(content),
+                    "uploaded_at": now_iso,
+                    "uploaded_by": user.username,
+                }}
+            )
+        else:
+            file_id = str(uuid.uuid4())
+            storage_path = DOCS_DIR / file_id
+            with open(storage_path, "wb") as f:
+                f.write(content)
+            meta = {
+                "id": file_id,
+                "soldier_id": soldier_id,
+                "type": "generated",
+                "filename": fname,
+                "size": len(content),
+                "mime": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "uploaded_at": now_iso,
+                "uploaded_by": user.username,
+                "source": "generated",
+                "template_id": tid,
+                "template_name": fname.replace(".docx", ""),
+                "status": "draft",      # тільки що згенеровано
+                "status_at": "",
+                "doc_notes": "",
+            }
+            await db.doc_files.insert_one(meta)
     headers = {"Content-Disposition": f"attachment; filename=\"document.docx\"; filename*=UTF-8''{_quote(fname)}"}
     return FastAPIResponse(content=content,
                            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -1277,17 +1361,89 @@ async def warehouse_summary(user=Depends(get_current_user)):
 
 # ============================ BACKUP (admin) ============================
 
+async def _run_backup_job(job_id: str):
+    """Виконується у фоні. Записує статус у db.backup_jobs."""
+    import asyncio
+    started = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    await db.backup_jobs.update_one(
+        {"id": job_id},
+        {"$set": {"status": "running", "started_at": started}}
+    )
+    try:
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, make_backup)
+        finished = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        await db.backup_jobs.update_one(
+            {"id": job_id},
+            {"$set": {
+                "status": "done",
+                "finished_at": finished,
+                "result": result,
+                "fallback": result.get("fallback", False),
+                "error": "",
+            }}
+        )
+    except Exception as e:
+        finished = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        logging.exception("Backup job failed")
+        await db.backup_jobs.update_one(
+            {"id": job_id},
+            {"$set": {"status": "error", "finished_at": finished, "error": str(e)}}
+        )
+
+
 @api_router.get("/admin/backup/list")
 async def admin_backup_list(user=Depends(commander_only)):
     return {"backups": list_backups(), "backup_dir": str(BACKUP_DIR)}
 
 
-@api_router.post("/admin/backup/run")
+@api_router.post("/admin/backup/run", status_code=202)
 async def admin_backup_run(user=Depends(commander_only)):
+    """Запуск бекапу у фоновому режимі. Повертає job_id для poll-а."""
     import asyncio
-    loop = asyncio.get_event_loop()
-    result = await loop.run_in_executor(None, make_backup)
-    return result
+    # Якщо вже є активна задача — не стартуємо нову
+    active = await db.backup_jobs.find_one(
+        {"status": {"$in": ["queued", "running"]}}, {"_id": 0}
+    )
+    if active:
+        return {
+            "job_id": active["id"],
+            "status": active["status"],
+            "started_at": active.get("started_at", ""),
+            "message": "Бекап вже виконується",
+        }
+    job_id = str(uuid.uuid4())
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    await db.backup_jobs.insert_one({
+        "id": job_id,
+        "status": "queued",
+        "created_at": now,
+        "created_by": user.username,
+        "started_at": "",
+        "finished_at": "",
+        "result": None,
+        "fallback": False,
+        "error": "",
+    })
+    # Запускаємо в фоні, одразу повертаємо 202
+    asyncio.create_task(_run_backup_job(job_id))
+    return {"job_id": job_id, "status": "queued", "created_at": now}
+
+
+@api_router.get("/admin/backup/job/{job_id}")
+async def admin_backup_job_status(job_id: str, user=Depends(commander_only)):
+    """Стан фонової задачі бекапу для UI polling."""
+    job = await db.backup_jobs.find_one({"id": job_id}, {"_id": 0})
+    if not job:
+        raise HTTPException(404, "Задачу не знайдено")
+    return job
+
+
+@api_router.get("/admin/backup/jobs")
+async def admin_backup_jobs(user=Depends(commander_only)):
+    """Останні 20 задач бекапу для журналу/моніторингу."""
+    jobs = await db.backup_jobs.find({}, {"_id": 0}).sort("created_at", -1).to_list(20)
+    return {"jobs": jobs}
 
 
 @api_router.get("/admin/backup/download/{name}")
@@ -1397,6 +1553,8 @@ async def startup():
         await db.doc_files.create_index("soldier_id")
         await db.ammo.create_index("node_path")
         await db.transfers.create_index("soldier_id")
+        await db.backup_jobs.create_index("created_at")
+        await db.doc_files.create_index([("soldier_id", 1), ("template_id", 1), ("status", 1)])
     except Exception:
         pass
     # Auto-backup щодня о 02:00 UTC
