@@ -13,6 +13,8 @@ import TemplatesTab from "./components/TemplatesTab";
 import WarehouseTab from "./components/WarehouseTab";
 import UsersTab from "./components/UsersTab";
 import BackupTab from "./components/BackupTab";
+import AuditTab from "./components/AuditTab";
+import StructureEditor from "./components/StructureEditor";
 import { cls, Stat } from "./components/Common";
 
 function AppShell() {
@@ -135,6 +137,12 @@ function AppShell() {
           {can.commander(user) && (
             <Tab id="backup" cur={tab} onSelect={setTab}>🛡 Бекап</Tab>
           )}
+          {can.commander(user) && (
+            <Tab id="audit" cur={tab} onSelect={setTab}>📋 Аудит</Tab>
+          )}
+          {can.commander(user) && (
+            <Tab id="org" cur={tab} onSelect={setTab}>🏗 Структура (ред.)</Tab>
+          )}
           <Tab id="summary" cur={tab} onSelect={setTab}>📊 Зведення</Tab>
         </div>
       </header>
@@ -162,6 +170,12 @@ function AppShell() {
         )}
         {tab === "backup" && can.commander(user) && (
           <BackupTab showToast={showToast} />
+        )}
+        {tab === "audit" && can.commander(user) && (
+          <AuditTab showToast={showToast} />
+        )}
+        {tab === "org" && can.commander(user) && (
+          <StructureEditor structure={structure} onChange={reload} showToast={showToast} />
         )}
         {tab === "summary" && <SummaryTab equipment={equipment} interactions={interactions} structure={structure} showToast={showToast} />}
       </main>

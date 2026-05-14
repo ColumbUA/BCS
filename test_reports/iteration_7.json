@@ -1,0 +1,33 @@
+{
+  "summary": "Iteration 7 — великий пакет (refactor + 4 нові фічі). Backend: 32/32 pytest проходять. Перевірено: (1) refactor regression — soldiers/transfers/warehouse/backup/structure GET все ще 200; (2) PLATOON_LEADER scope для kv1 — list scoped, foreign GET/POST/PUT/DELETE → 403; (3) PLATOON_LEADER transfers — own→company-node OK, foreign 403, list scoped; (4) Audit log — POST writes entry з category='soldiers', method='POST', status_code=200, username='admin', user_role='COMMANDER'; non-COMMANDER (kv1/material/viewer) → 403; фільтри category+username+success працюють; (5) TTL index 7776000s на created_at_ts підтверджено через motor.index_information(); (6) PDF export — admin 200 (>10KB, %PDF-), kv1 own 200, kv1 foreign 403; (7) Structure CRUD — create/rename/delete subunits+squads, RBAC kv1/material → 403, cascade rename перевірено (солдат отримав new node_path), DELETE без force при залежностях → 400, з ?force=1 → 200. Frontend: tab-audit показує таблицю з 34 рядками, всі 5 фільтрів (cat/user/success/limit/reload) працюють (cat='other'→16 rows). tab-org показує StructureEditor з 7 підрозділами, кнопки btn-add-subunit/btn-add-squad-{key}/btn-rename-su-{key}/btn-del-su-{key} клікаються, форми форм-new-subunit/form-new-squad з'являються. PDF export endpoint backend-verified (admin/kv1 200, foreign 403, content starts with %PDF-, >10KB).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration7.py",
+    "/app/test_reports/pytest/iter7_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py досі 1329 рядків (попри рефакторинг, structure CRUD + audit middleware + user mgmt все ще там). Рекомендую винести structure CRUD у routes/structure.py і audit endpoints у routes/audit.py — буде <1000 рядків.",
+    "AuditMiddleware декодує JWT і робить db.users.find_one() на КОЖНОМУ mutating-запиті — це O(N+1) для кожного POST/PUT/DELETE. Кешувати user в request.state (із get_current_user) і читати з нього — або кешувати users у TTL-LRU (60s).",
+    "_save_structure() блокуючий sync write JSON на кожне CRUD structure — для concurrent admin це race-risk. Рекомендую aiofiles + asyncio.Lock на структуру.",
+    "rename_subunit cascade: regex '^{escape(old)}(/.*)?$' працює, але якщо назва підрозділу містить регекс-спецсимволи (хоч re.escape їх екранує) — OK. Однак update_one в циклі = O(N) round-trips. Замінити на update_many з $regex та $set через aggregation pipeline ($concat) — швидше.",
+    "log_audit викликається з middleware ПІСЛЯ await call_next, але body не зчитується (TODO: для DELETE/PUT з payload видно тільки status_code). Розглянути запис body_snippet через request.body() з rewind через ASGI scope для критичних endpoints (users, soldiers DELETE).",
+    "audit_mod.SKIP_PATH_PREFIXES — /api/admin/backup/job/ skip OK для polling, але /api/admin/backup/run теж краще логувати — наразі логується, добре. Перевірити що /api/auth/2fa/enable/disable логуються (зараз НЕ у SKIP — OK).",
+    "soldier card row testid='sold-{id}' (не 'soldier-row-{id}'). Це не баг, але для уніфікації з іншими таблицями (e.g., audit-row-{id}) розглянути перейменування."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration7.py (новий — 32 тести: refactor regression / platoon scope / transfers / audit log+RBAC+filters / TTL index / PDF export / structure CRUD+cascade)"
+  ],
+  "success_rate": {"backend": "100% (32/32)", "frontend": "100% (audit tab + structure editor UI верифіковані; PDF endpoint backend-verified)"},
+  "test_credentials": "admin/rota2026 OK, kv1/platoon1 OK, material/venom2026 OK, viewer/view2026 OK",
+  "seed_data_creation": "Усі test-data створено з префіксом TEST_ / test_iter7_ і прибрано в try/finally. Перевірено: жодних залишкових subunits (test_iter7_su / test_iter7_delwithdeps), жодних залишкових солдатів (TEST_iter7_*). Тест-структури повністю прибрано.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter 7 додав: routes/{soldiers,transfers,backup,warehouse}.py + deps.py + audit_mod.py + pdf_card.py. PLATOON_LEADER scope — _is_in_scope() perfix-match по user.platoon. Audit log: db.audit_log з TTL 90 днів (expireAfterSeconds=7776000 на created_at_ts). GET /audit-log приймає category, username, success, limit. Endpoints структури CRUD: POST/PUT/DELETE /api/structure/subunits та /api/structure/squads/{parent_key}/{key}. Cascade rename: переіменування subunit оновлює node_path у soldiers/equipment/ammo через regex '^old(/.*)?$'. PDF: GET /soldiers/{sid}/export.pdf через reportlab+FreeSans, ~20-50KB. Frontend testids: tab-audit, tab-org, audit-table, audit-row-{id}, audit-filter-{cat,user,success,limit}, btn-audit-reload, structure-editor, btn-add-subunit, btn-add-squad-{key}, btn-rename-su-{key}, btn-del-su-{key}, form-new-subunit, form-new-squad-{key}, btn-export-pdf, sold-{id} (не soldier-row-{id}!).",
+  "rca of the issue": "N/A — усі 11 пунктів review_request пройшли"
+}

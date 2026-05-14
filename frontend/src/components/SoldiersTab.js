@@ -298,7 +298,7 @@ function Field({ label, children }) {
 
 
 function SoldierDetail({ id, onClose, showToast }) {
-  const { ax, user } = useAuth();
+  const { ax, user, token } = useAuth();
   const editable = can.edit(user);
   const isCommander = user?.role === "COMMANDER";
   const [s, setS] = useState(null);
@@ -307,6 +307,7 @@ function SoldierDetail({ id, onClose, showToast }) {
   const [uploading, setUploading] = useState("");
   const [showTransfer, setShowTransfer] = useState(false);
   const [previewFile, setPreviewFile] = useState(null);
+  const [pdfBusy, setPdfBusy] = useState(false);
 
   const load = async () => {
     const [r, f] = await Promise.all([ax().get(`/soldiers/${id}`), ax().get(`/soldiers/${id}/documents`)]);
@@ -314,6 +315,31 @@ function SoldierDetail({ id, onClose, showToast }) {
   };
 
   useEffect(() => { load(); }, [id]);
+
+  const exportPdf = async () => {
+    setPdfBusy(true);
+    try {
+      const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/soldiers/${id}/export.pdf`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const cd = res.headers.get("content-disposition") || "";
+      let fn = `Особова_картка_${s?.fio || "soldier"}.pdf`;
+      const m = cd.match(/filename\*=UTF-8''([^;]+)/);
+      if (m) fn = decodeURIComponent(m[1]);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = fn;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showToast(`✓ PDF: ${fn}`);
+    } catch (e) {
+      showToast(`Помилка PDF: ${e.message}`, "err");
+    } finally {
+      setPdfBusy(false);
+    }
+  };
 
   const save = async () => {
     try {
@@ -382,6 +408,10 @@ function SoldierDetail({ id, onClose, showToast }) {
             </div>
           </div>
           <div className="flex gap-2">
+            <button className="btn-mil text-xs" onClick={exportPdf} disabled={pdfBusy}
+                    data-testid="btn-export-pdf">
+              {pdfBusy ? "⏳ PDF…" : "📄 PDF"}
+            </button>
             {isCommander && (
               <button className="btn-mil btn-mil-danger text-xs" onClick={removeSoldier} data-testid="btn-delete-soldier">
                 ✕ Видалити картку

@@ -41,6 +41,8 @@ from xml_generators import (
 )
 from templates_lib import list_templates, render_template
 from backup_mod import make_backup, list_backups, delete_backup, BACKUP_DIR
+from audit_mod import log_audit, should_log, ensure_indexes as ensure_audit_indexes
+from deps import WAREHOUSE_CATEGORIES, WAREHOUSE_TXN_TYPES
 
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
@@ -59,6 +61,90 @@ with open(ROOT_DIR / 'structure.json', encoding='utf-8') as f:
 app = FastAPI(title="Управління ротою РРР")
 app.state.db = db
 api_router = APIRouter(prefix="/api")
+
+
+# ============================ AUDIT MIDDLEWARE ============================
+
+from starlette.middleware.base import BaseHTTPMiddleware
+
+
+class AuditMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        method = request.method
+        path = request.url.path
+        response = await call_next(request)
+        if should_log(method, path):
+            try:
+                # Витягнути user з токена (без блокування ендпоінта при помилках)
+                user_obj = None
+                token = None
+                auth_header = request.headers.get("Authorization", "")
+                if auth_header.startswith("Bearer "):
+                    token = auth_header[7:]
+                elif request.cookies.get("access_token"):
+                    token = request.cookies.get("access_token")
+                if token:
+                    try:
+                        from auth import decode_token
+                        payload = decode_token(token)
+                        u = await db.users.find_one({"id": payload["sub"]},
+                                                    {"_id": 0, "password_hash": 0, "totp_secret": 0})
+                        if u:
+                            class _U:
+                                pass
+                            user_obj = _U()
+                            user_obj.id = u.get("id", "")
+                            user_obj.username = u.get("username", "")
+                            user_obj.role = u.get("role", "")
+                            user_obj.platoon = u.get("platoon", "")
+                    except Exception:
+                        pass
+                client_ip = request.client.host if request.client else ""
+                # Body не логуємо щоб не ламати Streaming/UploadFile.
+                # Метаінформація (path/method/status) уже достатньо для аудиту.
+                await log_audit(
+                    user=user_obj, method=method, path=path,
+                    status_code=response.status_code,
+                    body_snippet="", ip=client_ip,
+                )
+            except Exception:
+                logging.exception("AuditMiddleware: failed to log")
+        return response
+
+
+# Підключимо ДО CORS (FastAPI middlewares додаються в зворотньому порядку)
+app.add_middleware(AuditMiddleware)
+
+
+# ============================ AUDIT API ============================
+
+@api_router.get("/audit-log")
+async def get_audit_log(
+    limit: int = 200,
+    category: str = "",
+    username: str = "",
+    success: Optional[bool] = None,
+    user=Depends(commander_only),
+):
+    """Журнал дій (тільки COMMANDER). Зберігається 90 днів автоматично."""
+    q: dict = {}
+    if category:
+        q["category"] = category
+    if username:
+        q["username"] = username
+    if success is not None:
+        q["success"] = success
+    limit = max(1, min(limit, 1000))
+    items = await db.audit_log.find(q, {"_id": 0, "created_at_ts": 0}).sort("created_at", -1).to_list(limit)
+    return {"items": items, "total": len(items), "filters": {"category": category, "username": username, "success": success}}
+
+
+@api_router.get("/audit-log/categories")
+async def get_audit_categories(user=Depends(commander_only)):
+    """Список доступних категорій для UI-фільтрів."""
+    cats = await db.audit_log.distinct("category")
+    users = await db.audit_log.distinct("username")
+    return {"categories": sorted([c for c in cats if c]), "usernames": sorted([u for u in users if u])}
 
 
 # ============================ ENUMS / CONSTS =====================================
@@ -353,6 +439,177 @@ async def get_structure(user=Depends(get_current_user)):
     return COMPANY
 
 
+class StructureSubunitCreate(BaseModel):
+    """Створити підрозділ (взвод/рота тощо)."""
+    model_config = ConfigDict(extra="ignore")
+    key: str          # унікальний ключ ("vzvod_3", "med_punkt" — латиницею)
+    name: str
+    type: str = "platoon"   # hq | platoon | squad | other
+    count: int = 0
+
+
+class StructureSquadCreate(BaseModel):
+    """Створити відділення в межах існуючого підрозділу."""
+    model_config = ConfigDict(extra="ignore")
+    parent_key: str
+    key: str
+    name: str
+    count: int = 0
+
+
+class StructureRename(BaseModel):
+    """Перейменувати підрозділ або відділення."""
+    model_config = ConfigDict(extra="ignore")
+    new_name: str
+
+
+def _save_structure():
+    """Записати поточний COMPANY у structure.json (атомарно)."""
+    import tempfile, shutil
+    target = ROOT_DIR / 'structure.json'
+    tmp = target.with_suffix('.tmp')
+    with open(tmp, 'w', encoding='utf-8') as f:
+        json.dump(COMPANY, f, ensure_ascii=False, indent=2)
+    shutil.move(str(tmp), str(target))
+
+
+@api_router.post("/structure/subunits")
+async def create_subunit(payload: StructureSubunitCreate, user=Depends(commander_only)):
+    """Додати новий підрозділ (взвод/штаб/тощо)."""
+    if not payload.key or not payload.name:
+        raise HTTPException(400, "key і name обов'язкові")
+    if payload.key in COMPANY["subunits"]:
+        raise HTTPException(400, f"Підрозділ з ключем '{payload.key}' уже існує")
+    COMPANY["subunits"][payload.key] = {
+        "name": payload.name,
+        "type": payload.type,
+        "count": payload.count,
+        "squads": {"__DIRECT__": {"name": "", "positions": []}},
+    }
+    if payload.key not in COMPANY["order"]:
+        COMPANY["order"].append(payload.key)
+    _save_structure()
+    return {"key": payload.key, "subunits_total": len(COMPANY["subunits"])}
+
+
+@api_router.put("/structure/subunits/{key}")
+async def rename_subunit(key: str, payload: StructureRename, user=Depends(commander_only)):
+    """Перейменувати підрозділ. Оновлює node_path у всіх пов'язаних колекціях."""
+    if key not in COMPANY["subunits"]:
+        raise HTTPException(404, "Підрозділ не знайдено")
+    old_name = COMPANY["subunits"][key]["name"]
+    new_name = payload.new_name.strip()
+    if not new_name:
+        raise HTTPException(400, "Нова назва не може бути порожньою")
+    if old_name == new_name:
+        return {"updated": False}
+    COMPANY["subunits"][key]["name"] = new_name
+    _save_structure()
+    # Каскадне оновлення node_path
+    import re
+    updated_total = 0
+    for coll in ("soldiers", "equipment", "ammo"):
+        cur = db[coll]
+        async for d in cur.find({"node_path": {"$regex": f"^{re.escape(old_name)}(/.*)?$"}}, {"_id": 0, "id": 1, "node_path": 1}):
+            new_path = re.sub(f"^{re.escape(old_name)}", new_name, d["node_path"])
+            await cur.update_one({"id": d["id"]}, {"$set": {"node_path": new_path}})
+            updated_total += 1
+    return {"updated": True, "old_name": old_name, "new_name": new_name, "cascade_count": updated_total}
+
+
+@api_router.delete("/structure/subunits/{key}")
+async def delete_subunit(key: str, force: int = 0, user=Depends(commander_only)):
+    """Видалити підрозділ. force=1 — навіть якщо є картки/засоби (вони не видаляються,
+    лише втрачають структурний зв'язок). Без force — 400 якщо є залежності."""
+    if key not in COMPANY["subunits"]:
+        raise HTTPException(404, "Підрозділ не знайдено")
+    name = COMPANY["subunits"][key]["name"]
+    if not force:
+        import re
+        rx = f"^{re.escape(name)}(/.*)?$"
+        cnt = await db.soldiers.count_documents({"node_path": {"$regex": rx}})
+        eq = await db.equipment.count_documents({"node_path": {"$regex": rx}})
+        ammo = await db.ammo.count_documents({"node_path": {"$regex": rx}})
+        if cnt + eq + ammo > 0:
+            raise HTTPException(
+                400,
+                f"Не можна видалити: пов'язано {cnt} карток, {eq} засобів, {ammo} БК. "
+                f"Спершу перенесіть або видаліть, або викличте з ?force=1"
+            )
+    del COMPANY["subunits"][key]
+    if key in COMPANY["order"]:
+        COMPANY["order"].remove(key)
+    _save_structure()
+    return {"deleted": key, "name": name}
+
+
+@api_router.post("/structure/squads")
+async def create_squad(payload: StructureSquadCreate, user=Depends(commander_only)):
+    """Додати відділення до існуючого підрозділу."""
+    if payload.parent_key not in COMPANY["subunits"]:
+        raise HTTPException(404, "Батьківський підрозділ не знайдено")
+    sub = COMPANY["subunits"][payload.parent_key]
+    squads = sub.setdefault("squads", {})
+    if payload.key in squads:
+        raise HTTPException(400, "Відділення з таким ключем уже існує")
+    squads[payload.key] = {"name": payload.name, "count": payload.count, "positions": []}
+    _save_structure()
+    return {"parent_key": payload.parent_key, "key": payload.key, "name": payload.name}
+
+
+@api_router.put("/structure/squads/{parent_key}/{key}")
+async def rename_squad(parent_key: str, key: str, payload: StructureRename, user=Depends(commander_only)):
+    """Перейменувати відділення."""
+    if parent_key not in COMPANY["subunits"]:
+        raise HTTPException(404, "Батьківський підрозділ не знайдено")
+    squads = COMPANY["subunits"][parent_key].get("squads", {})
+    if key not in squads:
+        raise HTTPException(404, "Відділення не знайдено")
+    parent_name = COMPANY["subunits"][parent_key]["name"]
+    old_name = squads[key].get("name", "")
+    new_name = payload.new_name.strip()
+    if not new_name:
+        raise HTTPException(400, "Нова назва не може бути порожньою")
+    squads[key]["name"] = new_name
+    _save_structure()
+    # Каскадне оновлення node_path
+    if old_name and old_name != new_name:
+        old_full = f"{parent_name}/{old_name}"
+        new_full = f"{parent_name}/{new_name}"
+        import re
+        for coll in ("soldiers", "equipment", "ammo"):
+            await db[coll].update_many(
+                {"node_path": old_full},
+                {"$set": {"node_path": new_full}}
+            )
+    return {"updated": True, "key": key, "new_name": new_name}
+
+
+@api_router.delete("/structure/squads/{parent_key}/{key}")
+async def delete_squad(parent_key: str, key: str, force: int = 0, user=Depends(commander_only)):
+    """Видалити відділення."""
+    if parent_key not in COMPANY["subunits"]:
+        raise HTTPException(404, "Батьківський підрозділ не знайдено")
+    squads = COMPANY["subunits"][parent_key].get("squads", {})
+    if key not in squads:
+        raise HTTPException(404, "Відділення не знайдено")
+    parent_name = COMPANY["subunits"][parent_key]["name"]
+    sq_name = squads[key].get("name", "")
+    if not force and sq_name:
+        full = f"{parent_name}/{sq_name}"
+        cnt = await db.soldiers.count_documents({"node_path": full})
+        eq = await db.equipment.count_documents({"node_path": full})
+        ammo = await db.ammo.count_documents({"node_path": full})
+        if cnt + eq + ammo > 0:
+            raise HTTPException(
+                400,
+                f"Не можна видалити: пов'язано {cnt} карток, {eq} засобів, {ammo} БК. ?force=1 щоб все одно"
+            )
+    del squads[key]
+    _save_structure()
+    return {"deleted": key, "name": sq_name}
+
+
 @api_router.get("/")
 async def root():
     counts = {k: COMPANY["subunits"][k]["count"] for k in COMPANY["order"]}
@@ -560,303 +817,8 @@ async def preset_typical_interactions(user=Depends(commander_only)):
     return {"inserted": len(docs)}
 
 
-# ============================ SOLDIERS CRUD ============================
-
-class EducationItem(BaseModel):
-    degree: str = ""        # ступінь
-    institution: str = ""
-    year: str = ""
-    specialty: str = ""
-
-
-class Certificate(BaseModel):
-    name: str = ""
-    issued_at: str = ""
-    issuer: str = ""
-
-
-class SoldierBase(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    fio: str
-    callsign: str = ""
-    node_path: str = ""           # підрозділ/відділення
-    position: str = ""            # посада з БЧС
-    rank: str = ""
-    birth_date: str = ""
-    mobilized_at: str = ""        # дата мобілізації (YYYY-MM-DD)
-    bzvp_passed_at: str = ""      # дата проходження БЗВП
-    ktz_passed_at: str = ""       # дата проходження КТЗ
-    education: List[EducationItem] = []
-    certificates: List[Certificate] = []
-    blood_group: str = ""
-    has_driver_license: bool = False
-    location_status: str = "ППД"   # ППД / РЗ / РВ / СЗЧ / Відпустка / тощо
-    location_place: str = ""       # н.п., адреса, координати
-    location_updated_at: str = ""
-    notes: str = ""
-
-
-class Soldier(SoldierBase):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    documents: dict = {}    # {type: file_id}
-    created_at: str = Field(default_factory=lambda: datetime.datetime.now(datetime.timezone.utc).isoformat())
-    updated_at: str = ""
-
-
-@api_router.get("/soldiers", response_model=List[Soldier])
-async def list_soldiers(user=Depends(get_current_user)):
-    return await db.soldiers.find({}, {"_id": 0}).to_list(500)
-
-
-@api_router.get("/soldiers/{sid}", response_model=Soldier)
-async def get_soldier(sid: str, user=Depends(get_current_user)):
-    s = await db.soldiers.find_one({"id": sid}, {"_id": 0})
-    if not s:
-        raise HTTPException(404, "Картку не знайдено")
-    return s
-
-
-@api_router.post("/soldiers", response_model=Soldier)
-async def create_soldier(payload: SoldierBase, user=Depends(can_edit)):
-    item = Soldier(**payload.model_dump())
-    item.updated_at = item.created_at
-    await db.soldiers.insert_one(item.model_dump())
-    return item
-
-
-@api_router.put("/soldiers/{sid}", response_model=Soldier)
-async def update_soldier(sid: str, payload: SoldierBase, user=Depends(can_edit)):
-    upd = payload.model_dump()
-    upd["updated_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    res = await db.soldiers.find_one_and_update({"id": sid}, {"$set": upd},
-                                                return_document=True, projection={"_id": 0})
-    if not res:
-        raise HTTPException(404, "Картку не знайдено")
-    return res
-
-
-@api_router.delete("/soldiers/{sid}")
-async def delete_soldier(sid: str, user=Depends(commander_only)):
-    s = await db.soldiers.find_one({"id": sid}, {"_id": 0})
-    if s:
-        # видалити документи
-        for fid in (s.get("documents") or {}).values():
-            await _delete_file(fid)
-    await db.soldiers.delete_one({"id": sid})
-    return {"deleted": sid}
-
-
-@api_router.post("/soldiers/seed-from-bchs")
-async def seed_soldiers_from_bchs(user=Depends(commander_only)):
-    """Створює картки для всіх посад з БЧС, у яких є ПІБ."""
-    inserted = 0
-    for sub_key, sub in COMPANY["subunits"].items():
-        sub_name = sub["name"]
-        for sq_key, sq in sub["squads"].items():
-            sq_path = sub_name if sq_key == "__DIRECT__" else f"{sub_name}/{sq['name']}"
-            for p in sq["positions"]:
-                if not p.get("fio"):
-                    continue
-                # Перевіримо чи вже є картка
-                ex = await db.soldiers.find_one({"fio": p["fio"]}, {"_id": 0})
-                if ex:
-                    continue
-                s = Soldier(
-                    fio=p["fio"], callsign=p.get("callsign", ""),
-                    node_path=sq_path, position=p["position"],
-                    rank=p.get("rank_actual") or p.get("rank_state", ""),
-                )
-                s.updated_at = s.created_at
-                await db.soldiers.insert_one(s.model_dump())
-                inserted += 1
-    return {"inserted": inserted}
-
-
-# ============================ TRANSFERS (переміщення) ============================
-
-class TransferBase(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    soldier_id: str
-    transfer_type: str = "in-rota"
-    from_node_path: str = ""
-    to_node_path: str = ""
-    new_position: str = ""
-    reason: str = ""
-    effective_date: str = ""
-    order_number: str = ""
-    status: Literal["draft", "submitted", "approved", "executed", "rejected"] = "draft"
-    notes: str = ""
-
-
-class Transfer(TransferBase):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    soldier_fio: str = ""
-    document_ids: List[str] = []
-    created_at: str = Field(default_factory=lambda: datetime.datetime.now(datetime.timezone.utc).isoformat())
-    created_by: str = ""
-    executed_at: str = ""
-
-
-@api_router.get("/soldiers/{sid}/transfers", response_model=List[Transfer])
-async def list_soldier_transfers(sid: str, user=Depends(get_current_user)):
-    return await db.transfers.find({"soldier_id": sid}, {"_id": 0}).sort("created_at", -1).to_list(200)
-
-
-@api_router.get("/transfers", response_model=List[Transfer])
-async def list_all_transfers(user=Depends(get_current_user)):
-    return await db.transfers.find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
-
-
-@api_router.post("/transfers", response_model=Transfer)
-async def create_transfer(payload: TransferBase, user=Depends(can_edit)):
-    s = await db.soldiers.find_one({"id": payload.soldier_id}, {"_id": 0})
-    if not s:
-        raise HTTPException(404, "Картку не знайдено")
-    # Валідація транзит-типу
-    if payload.transfer_type not in TRANSFER_TYPES:
-        raise HTTPException(400, f"Невідомий тип переміщення. Допустимі: {list(TRANSFER_TYPES.keys())}")
-    # Для in-rota: to_node_path і from_node_path мають належати структурі роти
-    if payload.transfer_type == "in-rota":
-        valid_paths = _company_node_paths()
-        if payload.to_node_path and payload.to_node_path not in valid_paths:
-            raise HTTPException(
-                400,
-                f"Невірний підрозділ призначення '{payload.to_node_path}'. "
-                f"Допустимі: {sorted(valid_paths)}"
-            )
-        if payload.from_node_path and payload.from_node_path not in valid_paths:
-            raise HTTPException(
-                400,
-                f"Невірний підрозділ відправлення '{payload.from_node_path}'. "
-                f"Допустимі: {sorted(valid_paths)}"
-            )
-    data = payload.model_dump()
-    if not data.get("from_node_path"):
-        data["from_node_path"] = s.get("node_path", "")
-    t = Transfer(**data,
-                 soldier_fio=s["fio"],
-                 created_by=user.username)
-    await db.transfers.insert_one(t.model_dump())
-    return t
-
-
-@api_router.put("/transfers/{tid}", response_model=Transfer)
-async def update_transfer(tid: str, payload: TransferBase, user=Depends(can_edit)):
-    res = await db.transfers.find_one_and_update(
-        {"id": tid}, {"$set": payload.model_dump()},
-        return_document=True, projection={"_id": 0})
-    if not res:
-        raise HTTPException(404, "Не знайдено")
-    return res
-
-
-@api_router.post("/transfers/{tid}/execute")
-async def execute_transfer(tid: str, user=Depends(can_edit)):
-    t = await db.transfers.find_one({"id": tid}, {"_id": 0})
-    if not t:
-        raise HTTPException(404, "Не знайдено")
-    if t["status"] == "executed":
-        raise HTTPException(400, "Вже виконано")
-    upd = {"updated_at": datetime.datetime.now(datetime.timezone.utc).isoformat()}
-    if t["transfer_type"] == "in-rota" and t.get("to_node_path"):
-        # Повторна валідація на момент виконання (структура могла змінитись)
-        valid_paths = _company_node_paths()
-        if t["to_node_path"] not in valid_paths:
-            raise HTTPException(
-                400,
-                f"Підрозділ призначення '{t['to_node_path']}' не існує у поточній структурі роти"
-            )
-        upd["node_path"] = t["to_node_path"]
-        if t.get("new_position"):
-            upd["position"] = t["new_position"]
-        # При внутрішньому переміщенні автоматично повертаємо до ППД
-        upd["location_status"] = "ППД"
-        upd["location_place"] = ""
-        upd["location_updated_at"] = upd["updated_at"]
-    elif t["transfer_type"] in ("in-bat", "in-polk", "in-brigade", "in-zsu", "discharge", "deceased", "missing"):
-        s = await db.soldiers.find_one({"id": t["soldier_id"]}, {"_id": 0, "notes": 1})
-        cur_notes = (s or {}).get("notes", "") or ""
-        new_note = f"[{t.get('effective_date') or 'без дати'}] {TRANSFER_TYPES.get(t['transfer_type'], t['transfer_type'])}: {t.get('to_node_path','')}"
-        upd["notes"] = (cur_notes + "\n" + new_note).strip()
-        upd["location_status"] = "Інше"
-        upd["location_place"] = t.get("to_node_path", "")
-        upd["location_updated_at"] = upd["updated_at"]
-    await db.soldiers.update_one({"id": t["soldier_id"]}, {"$set": upd})
-    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    await db.transfers.update_one({"id": tid}, {"$set": {"status": "executed", "executed_at": now}})
-    return {"executed": tid}
-
-
-@api_router.delete("/transfers/{tid}")
-async def delete_transfer(tid: str, user=Depends(commander_only)):
-    res = await db.transfers.delete_one({"id": tid})
-    if res.deleted_count == 0:
-        raise HTTPException(404, "Не знайдено")
-    return {"deleted": tid}
-
-
-# ============================ BCHS EXPORT (CSV / XLSX) ============================
-
-@api_router.get("/export/bchs.csv")
-async def export_soldiers_csv(user=Depends(get_current_user)):
-    import csv as _csv
-    soldiers = await db.soldiers.find({}, {"_id": 0}).to_list(500)
-    buf = io.StringIO()
-    writer = _csv.writer(buf, delimiter=";", quoting=_csv.QUOTE_MINIMAL,
-                         lineterminator="\n")
-    writer.writerow(["ПІБ", "Позивний", "Звання", "Посада", "Підрозділ",
-                     "Дата народж.", "Дата моб.", "БЗВП", "КТЗ", "Гр.крові",
-                     "ВП", "Стан", "Місце", "Документів", "Примітки"])
-    for s in soldiers:
-        docs = s.get("documents") or {}
-        writer.writerow([
-            s.get("fio", ""), s.get("callsign", ""), s.get("rank", ""),
-            s.get("position", ""), s.get("node_path", ""),
-            s.get("birth_date", ""), s.get("mobilized_at", ""),
-            s.get("bzvp_passed_at", ""), s.get("ktz_passed_at", ""),
-            s.get("blood_group", ""),
-            "так" if s.get("has_driver_license") else "ні",
-            s.get("location_status", ""), s.get("location_place", ""),
-            str(len(docs)), s.get("notes", ""),
-        ])
-    csv_text = buf.getvalue()
-    fn = f"БЧС - {COMPANY['name']} - {datetime.date.today().strftime('%Y-%m-%d')}.csv"
-    headers = {"Content-Disposition": f"attachment; filename=\"bchs.csv\"; filename*=UTF-8''{_quote(fn)}"}
-    return FastAPIResponse(content="\ufeff" + csv_text, media_type="text/csv; charset=utf-8", headers=headers)
-
-
-@api_router.get("/export/bchs.xlsx")
-async def export_soldiers_xlsx(user=Depends(get_current_user)):
-    import openpyxl
-    soldiers = await db.soldiers.find({}, {"_id": 0}).to_list(500)
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "БЧС"
-    ws.append(["№", "ПІБ", "Позивний", "Звання", "Посада", "Підрозділ",
-               "Дата народж.", "Дата моб.", "БЗВП", "КТЗ", "Гр.крові", "ВП",
-               "Стан", "Місце", "Документів", "Примітки"])
-    for i, s in enumerate(soldiers, 1):
-        docs = s.get("documents") or {}
-        ws.append([
-            i, s.get("fio", ""), s.get("callsign", ""), s.get("rank", ""),
-            s.get("position", ""), s.get("node_path", ""),
-            s.get("birth_date", ""), s.get("mobilized_at", ""),
-            s.get("bzvp_passed_at", ""), s.get("ktz_passed_at", ""),
-            s.get("blood_group", ""),
-            "так" if s.get("has_driver_license") else "ні",
-            s.get("location_status", ""), s.get("location_place", ""),
-            len(docs), s.get("notes", "")
-        ])
-    buf = io.BytesIO()
-    wb.save(buf)
-    buf.seek(0)
-    fn = f"БЧС - {COMPANY['name']} - {datetime.date.today().strftime('%Y-%m-%d')}.xlsx"
-    headers = {"Content-Disposition": f"attachment; filename=\"bchs.xlsx\"; filename*=UTF-8''{_quote(fn)}"}
-    return StreamingResponse(buf,
-                             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                             headers=headers)
-
-
+# ============================ SOLDIERS / TRANSFERS / BCHS EXPORT ============================
+# Перенесено у /app/backend/routes/soldiers.py та /app/backend/routes/transfers.py
 
 
 # ============================ DOCUMENTS UPLOAD ============================
@@ -1226,243 +1188,8 @@ async def render_template_endpoint(tid: str, soldier_id: Optional[str] = None,
                            headers=headers)
 
 
-# ============================ WAREHOUSE (Склад) ============================
-
-WAREHOUSE_CATEGORIES = ["ОВТ", "БК", "Засіб зв'язку", "Транспорт", "ПММ", "Майно (речове)",
-                       "Інженерне", "Медичне", "Продовольче", "Інше"]
-WAREHOUSE_TXN_TYPES = ["IN", "OUT", "WRITEOFF"]   # прихід / видача / списання
-TXN_LABELS = {"IN": "Прихід", "OUT": "Видача", "WRITEOFF": "Списання"}
-
-
-class WarehouseItemBase(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    name: str
-    category: str = "Майно (речове)"
-    unit: str = "шт"           # одиниця виміру
-    serial: str = ""           # сер/інв номер
-    notes: str = ""
-    min_balance: int = 0       # сигнальний залишок (для алертів)
-
-
-class WarehouseItem(WarehouseItemBase):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    created_at: str = Field(default_factory=lambda: datetime.datetime.now(datetime.timezone.utc).isoformat())
-
-
-class WarehouseTxnBase(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    item_id: str
-    type: Literal["IN", "OUT", "WRITEOFF"]
-    qty: int
-    date: str = ""             # YYYY-MM-DD
-    counterparty: str = ""     # від кого (для IN) або кому видано (для OUT)
-    doc_ref: str = ""          # № накладної / акту
-    reason: str = ""           # причина (для WRITEOFF)
-    notes: str = ""
-
-
-class WarehouseTxn(WarehouseTxnBase):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    created_at: str = Field(default_factory=lambda: datetime.datetime.now(datetime.timezone.utc).isoformat())
-    created_by: str = ""
-
-
-@api_router.get("/warehouse/items")
-async def list_warehouse(user=Depends(get_current_user)):
-    items = await db.warehouse_items.find({}, {"_id": 0}).to_list(2000)
-    txns = await db.warehouse_txns.find({}, {"_id": 0}).to_list(50000)
-    # Обчислюємо залишки
-    bal = {}
-    for t in txns:
-        delta = t["qty"] if t["type"] == "IN" else -t["qty"]
-        bal[t["item_id"]] = bal.get(t["item_id"], 0) + delta
-    for it in items:
-        it["balance"] = bal.get(it["id"], 0)
-        it["below_min"] = it["balance"] < (it.get("min_balance") or 0) if (it.get("min_balance") or 0) > 0 else False
-    return items
-
-
-@api_router.post("/warehouse/items", response_model=WarehouseItem)
-async def create_warehouse_item(payload: WarehouseItemBase, user=Depends(can_edit)):
-    item = WarehouseItem(**payload.model_dump())
-    await db.warehouse_items.insert_one(item.model_dump())
-    return item
-
-
-@api_router.put("/warehouse/items/{iid}", response_model=WarehouseItem)
-async def update_warehouse_item(iid: str, payload: WarehouseItemBase, user=Depends(can_edit)):
-    res = await db.warehouse_items.find_one_and_update(
-        {"id": iid}, {"$set": payload.model_dump()},
-        return_document=True, projection={"_id": 0})
-    if not res:
-        raise HTTPException(404, "Не знайдено")
-    return res
-
-
-@api_router.delete("/warehouse/items/{iid}")
-async def delete_warehouse_item(iid: str, user=Depends(commander_only)):
-    existing = await db.warehouse_items.find_one({"id": iid}, {"_id": 0})
-    if not existing:
-        raise HTTPException(404, "Не знайдено")
-    await db.warehouse_txns.delete_many({"item_id": iid})
-    await db.warehouse_items.delete_one({"id": iid})
-    return {"deleted": iid}
-
-
-@api_router.get("/warehouse/items/{iid}/txns")
-async def get_item_txns(iid: str, user=Depends(get_current_user)):
-    txns = await db.warehouse_txns.find({"item_id": iid}, {"_id": 0}).sort("created_at", 1).to_list(2000)
-    return txns
-
-
-@api_router.post("/warehouse/txns", response_model=WarehouseTxn)
-async def create_txn(payload: WarehouseTxnBase, user=Depends(can_edit)):
-    item = await db.warehouse_items.find_one({"id": payload.item_id}, {"_id": 0})
-    if not item:
-        raise HTTPException(404, "Позицію не знайдено")
-    if payload.qty <= 0:
-        raise HTTPException(400, "Кількість має бути > 0")
-    if payload.type in ("OUT", "WRITEOFF"):
-        # Перевіримо залишок
-        txns = await db.warehouse_txns.find({"item_id": payload.item_id}, {"_id": 0}).to_list(10000)
-        bal = sum((t["qty"] if t["type"] == "IN" else -t["qty"]) for t in txns)
-        if payload.qty > bal:
-            raise HTTPException(400, f"Недостатньо на залишку. Залишок: {bal} {item['unit']}")
-    txn = WarehouseTxn(**payload.model_dump(), created_by=user.username)
-    await db.warehouse_txns.insert_one(txn.model_dump())
-    return txn
-
-
-@api_router.delete("/warehouse/txns/{tid}")
-async def delete_txn(tid: str, user=Depends(commander_only)):
-    res = await db.warehouse_txns.delete_one({"id": tid})
-    if res.deleted_count == 0:
-        raise HTTPException(404, "Не знайдено")
-    return {"deleted": tid}
-
-
-@api_router.get("/warehouse/summary")
-async def warehouse_summary(user=Depends(get_current_user)):
-    items = await db.warehouse_items.find({}, {"_id": 0}).to_list(2000)
-    txns = await db.warehouse_txns.find({}, {"_id": 0}).to_list(50000)
-    bal = {}
-    for t in txns:
-        delta = t["qty"] if t["type"] == "IN" else -t["qty"]
-        bal[t["item_id"]] = bal.get(t["item_id"], 0) + delta
-    by_cat = {}; total = 0
-    for it in items:
-        b = bal.get(it["id"], 0)
-        c = it.get("category", "Інше")
-        by_cat[c] = by_cat.get(c, 0) + b
-        total += b
-    return {"total_items": len(items), "total_qty": total, "by_category": by_cat,
-            "txns_total": len(txns)}
-
-
-# ============================ BACKUP (admin) ============================
-
-async def _run_backup_job(job_id: str):
-    """Виконується у фоні. Записує статус у db.backup_jobs."""
-    import asyncio
-    started = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    await db.backup_jobs.update_one(
-        {"id": job_id},
-        {"$set": {"status": "running", "started_at": started}}
-    )
-    try:
-        loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(None, make_backup)
-        finished = datetime.datetime.now(datetime.timezone.utc).isoformat()
-        await db.backup_jobs.update_one(
-            {"id": job_id},
-            {"$set": {
-                "status": "done",
-                "finished_at": finished,
-                "result": result,
-                "fallback": result.get("fallback", False),
-                "error": "",
-            }}
-        )
-    except Exception as e:
-        finished = datetime.datetime.now(datetime.timezone.utc).isoformat()
-        logging.exception("Backup job failed")
-        await db.backup_jobs.update_one(
-            {"id": job_id},
-            {"$set": {"status": "error", "finished_at": finished, "error": str(e)}}
-        )
-
-
-@api_router.get("/admin/backup/list")
-async def admin_backup_list(user=Depends(commander_only)):
-    return {"backups": list_backups(), "backup_dir": str(BACKUP_DIR)}
-
-
-@api_router.post("/admin/backup/run", status_code=202)
-async def admin_backup_run(user=Depends(commander_only)):
-    """Запуск бекапу у фоновому режимі. Повертає job_id для poll-а."""
-    import asyncio
-    # Якщо вже є активна задача — не стартуємо нову
-    active = await db.backup_jobs.find_one(
-        {"status": {"$in": ["queued", "running"]}}, {"_id": 0}
-    )
-    if active:
-        return {
-            "job_id": active["id"],
-            "status": active["status"],
-            "started_at": active.get("started_at", ""),
-            "message": "Бекап вже виконується",
-        }
-    job_id = str(uuid.uuid4())
-    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    await db.backup_jobs.insert_one({
-        "id": job_id,
-        "status": "queued",
-        "created_at": now,
-        "created_by": user.username,
-        "started_at": "",
-        "finished_at": "",
-        "result": None,
-        "fallback": False,
-        "error": "",
-    })
-    # Запускаємо в фоні, одразу повертаємо 202
-    asyncio.create_task(_run_backup_job(job_id))
-    return {"job_id": job_id, "status": "queued", "created_at": now}
-
-
-@api_router.get("/admin/backup/job/{job_id}")
-async def admin_backup_job_status(job_id: str, user=Depends(commander_only)):
-    """Стан фонової задачі бекапу для UI polling."""
-    job = await db.backup_jobs.find_one({"id": job_id}, {"_id": 0})
-    if not job:
-        raise HTTPException(404, "Задачу не знайдено")
-    return job
-
-
-@api_router.get("/admin/backup/jobs")
-async def admin_backup_jobs(user=Depends(commander_only)):
-    """Останні 20 задач бекапу для журналу/моніторингу."""
-    jobs = await db.backup_jobs.find({}, {"_id": 0}).sort("created_at", -1).to_list(20)
-    return {"jobs": jobs}
-
-
-@api_router.get("/admin/backup/download/{name}")
-async def admin_backup_download(name: str, user=Depends(commander_only)):
-    if "/" in name or ".." in name:
-        raise HTTPException(400, "Невірне ім'я")
-    p = BACKUP_DIR / name
-    if not p.exists():
-        raise HTTPException(404, "Бекап не знайдено")
-    headers = {"Content-Disposition": f'attachment; filename="{name}"'}
-    return FileResponse(p, media_type="application/gzip", filename=name, headers=headers)
-
-
-@api_router.delete("/admin/backup/{name}")
-async def admin_backup_delete(name: str, user=Depends(commander_only)):
-    ok = delete_backup(name)
-    if not ok:
-        raise HTTPException(404, "Бекап не знайдено")
-    return {"deleted": name}
+# ============================ WAREHOUSE / BACKUP ============================
+# Перенесено у /app/backend/routes/warehouse.py та /app/backend/routes/backup.py
 
 
 # ============================ EXPORT ============================
@@ -1555,6 +1282,7 @@ async def startup():
         await db.transfers.create_index("soldier_id")
         await db.backup_jobs.create_index("created_at")
         await db.doc_files.create_index([("soldier_id", 1), ("template_id", 1), ("status", 1)])
+        await ensure_audit_indexes()
     except Exception:
         pass
     # Auto-backup щодня о 02:00 UTC
@@ -1577,6 +1305,17 @@ async def shutdown_db_client():
 
 
 # ============================ FINAL ============================
+
+# Підключаємо роутери з routes/ — кожен має префікс /api/...
+from routes.soldiers import router as soldiers_router
+from routes.transfers import router as transfers_router
+from routes.backup import router as backup_router
+from routes.warehouse import router as warehouse_router
+
+api_router.include_router(soldiers_router)
+api_router.include_router(transfers_router)
+api_router.include_router(backup_router)
+api_router.include_router(warehouse_router)
 
 app.include_router(api_router)
 app.add_middleware(
