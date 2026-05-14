@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../AuthContext";
 import { cls } from "./Common";
+import { downloadAuthFile } from "../utils/download";
 
 export default function BackupTab({ showToast }) {
   const { ax, token } = useAuth();
@@ -69,15 +70,12 @@ export default function BackupTab({ showToast }) {
   const download = async (name) => {
     setDownloading(name);
     try {
-      const url = `${process.env.REACT_APP_BACKEND_URL}/api/admin/backup/download/${encodeURIComponent(name)}`;
-      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const blob = await res.blob();
-      const u = URL.createObjectURL(blob);
-      const a = document.createElement("a"); a.href = u; a.download = name;
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(u), 1000);
-      showToast(`Завантажено: ${name}`);
+      await downloadAuthFile(
+        `${process.env.REACT_APP_BACKEND_URL}/api/admin/backup/download/${encodeURIComponent(name)}`,
+        name,
+        token,
+      );
+      showToast(`✓ Завантажено: ${name}`);
     } catch (e) { showToast(`Помилка: ${e.message}`, "err"); }
     finally { setDownloading(""); }
   };

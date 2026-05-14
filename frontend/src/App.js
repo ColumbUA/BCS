@@ -65,10 +65,16 @@ function AppShell() {
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url; a.download = filename;
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-      showToast(`Завантажено: ${filename}`);
+      a.href = url;
+      a.download = filename;
+      a.rel = "noopener";
+      a.target = "_blank";   // iframe-sandbox compatibility
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      // Більший таймаут на cleanup, щоб браузер встиг почати завантаження
+      setTimeout(() => { try { a.remove(); URL.revokeObjectURL(url); } catch (_) {} }, 4000);
+      showToast(`✓ Завантажено: ${filename}`);
     } catch (e) { showToast(`Помилка: ${e.message}`, "err"); }
     finally { setDownloading(null); }
   };

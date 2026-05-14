@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../AuthContext";
 import { cls } from "./Common";
+import { downloadAuthFile } from "../utils/download";
 
 const CAT_ICONS = {
   "Рапорти": "📝",
@@ -29,15 +30,8 @@ export default function TemplatesTab({ showToast }) {
     try {
       const url = `${process.env.REACT_APP_BACKEND_URL}/api/templates/${tpl.id}/render` +
                   (selectedSoldier ? `?soldier_id=${selectedSoldier}` : "");
-      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const blob = await res.blob();
-      const u = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = u; a.download = `${tpl.name}.docx`;
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(u), 1000);
-      showToast(`Завантажено: ${tpl.name}.docx`);
+      const { filename } = await downloadAuthFile(url, `${tpl.name}.docx`, token);
+      showToast(`✓ Завантажено: ${filename}`);
     } catch (e) { showToast(`Помилка: ${e.message}`, "err"); }
     finally { setDownloading(""); }
   };

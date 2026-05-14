@@ -3,6 +3,7 @@ import { useAuth, can } from "../AuthContext";
 import { cls } from "./Common";
 import FilePreviewModal from "./FilePreviewModal";
 import TransferModal from "./TransferModal";
+import { downloadAuthFile } from "../utils/download";
 
 const DOC_LABELS = {
   passport: "Паспорт",
@@ -73,16 +74,12 @@ export default function SoldiersTab({ structure, showToast, forceOpenId, clearOp
 
   const downloadBchs = async (fmt) => {
     try {
-      const url = `${process.env.REACT_APP_BACKEND_URL}/api/export/bchs.${fmt}`;
-      const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const blob = await r.blob();
-      const u = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = u; a.download = `БЧС.${fmt}`;
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(u), 1000);
-      showToast(`Завантажено: БЧС.${fmt}`);
+      const { filename } = await downloadAuthFile(
+        `${process.env.REACT_APP_BACKEND_URL}/api/export/bchs.${fmt}`,
+        `БЧС.${fmt}`,
+        token,
+      );
+      showToast(`✓ Завантажено: ${filename}`);
     } catch (e) { showToast(`Помилка: ${e.message}`, "err"); }
   };
 
@@ -319,21 +316,12 @@ function SoldierDetail({ id, onClose, showToast }) {
   const exportPdf = async () => {
     setPdfBusy(true);
     try {
-      const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/soldiers/${id}/export.pdf`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const cd = res.headers.get("content-disposition") || "";
-      let fn = `Особова_картка_${s?.fio || "soldier"}.pdf`;
-      const m = cd.match(/filename\*=UTF-8''([^;]+)/);
-      if (m) fn = decodeURIComponent(m[1]);
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = fn;
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-      showToast(`✓ PDF: ${fn}`);
+      const { filename } = await downloadAuthFile(
+        `${process.env.REACT_APP_BACKEND_URL}/api/soldiers/${id}/export.pdf`,
+        `Особова_картка_${s?.fio || "soldier"}.pdf`,
+        token,
+      );
+      showToast(`✓ PDF: ${filename}`);
     } catch (e) {
       showToast(`Помилка PDF: ${e.message}`, "err");
     } finally {
@@ -380,10 +368,15 @@ function SoldierDetail({ id, onClose, showToast }) {
   };
 
   const downloadDoc = async (fileId, filename) => {
-    const r = await ax().get(`/documents/${fileId}`, { responseType: "blob" });
-    const url = URL.createObjectURL(r.data);
-    const a = document.createElement("a"); a.href = url; a.download = filename; a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    try {
+      await downloadAuthFile(
+        `${process.env.REACT_APP_BACKEND_URL}/api/documents/${fileId}`,
+        filename,
+        token,
+      );
+    } catch (e) {
+      showToast(`Помилка: ${e.message}`, "err");
+    }
   };
 
   if (!s || !form) return null;

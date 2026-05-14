@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../AuthContext";
+import { downloadAuthFile } from "../utils/download";
 
 const TRANSFER_TYPES = [
   { v: "in-rota",    l: "Переміщення в межах роти" },
@@ -169,18 +170,17 @@ function TransferForm({ soldier, onClose, onCreated, showToast }) {
     try {
       const r = await ax().post("/transfers", form);
       showToast("✓ Створено. Можна сформувати супровідні документи.");
-      // Suggest generating doc
       const recs = RECOMMENDED_DOCS[form.transfer_type] || [];
       if (recs.length && window.confirm(`Згенерувати супровідний документ?\n\nРекомендовано: ${recs[0]}\n(збережеться у картці)`)) {
-        const url = `${process.env.REACT_APP_BACKEND_URL}/api/templates/${recs[0]}/render?soldier_id=${soldier.id}&save_to_card=1`;
-        const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-        if (res.ok) {
-          const blob = await res.blob();
-          const u = URL.createObjectURL(blob);
-          const a = document.createElement("a"); a.href = u; a.download = `Документ_до_переміщення.docx`;
-          document.body.appendChild(a); a.click(); a.remove();
-          setTimeout(() => URL.revokeObjectURL(u), 1000);
+        try {
+          await downloadAuthFile(
+            `${process.env.REACT_APP_BACKEND_URL}/api/templates/${recs[0]}/render?soldier_id=${soldier.id}&save_to_card=1`,
+            `Документ_до_переміщення.docx`,
+            token,
+          );
           showToast("✓ Документ згенеровано і збережено у картці");
+        } catch (de) {
+          showToast(`Помилка генерації: ${de.message}`, "err");
         }
       }
       onCreated();
